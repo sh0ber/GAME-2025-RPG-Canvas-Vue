@@ -8,7 +8,6 @@ export class Enemy extends Character {
     this.aggroRange = 300;
     this.leashMultiplier = 1.25;
     this.tileType = 3; 
-    this.target = null;
     // Added this explicitly to avoid undefined errors
     this.velocity = { x: 0, y: 0 }; 
   }
