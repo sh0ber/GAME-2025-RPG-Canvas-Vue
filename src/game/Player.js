@@ -9,7 +9,7 @@ export class Player extends Character {
    */
   constructor(x, y, inputManager) {
     super(x, y);
-    this.speed = 100;
+    this.speed = 300;
     this.tileType = 2;
 
     this.faction = 'player';
@@ -18,8 +18,8 @@ export class Player extends Character {
   }
 
   update(deltaTime, zone) {
-    super.update(deltaTime, zone); 
-    
+    super.update(deltaTime, zone);
+
     let dirX = 0;
     let dirY = 0;
 
@@ -28,6 +28,13 @@ export class Player extends Character {
     if (this.input.isKeyDown('ArrowLeft') || this.input.isKeyDown('a')) dirX -= 1;
     if (this.input.isKeyDown('ArrowRight') || this.input.isKeyDown('d')) dirX += 1;
 
-    this.tryMove(dirX, dirY, deltaTime, zone);
+    if (dirX !== 0 || dirY !== 0) {
+      const factor = (dirX !== 0 && dirY !== 0) ? 0.70710678 : 1;
+
+      const vx = dirX * this.speed * factor * deltaTime;
+      const vy = dirY * this.speed * factor * deltaTime;
+
+      this.move(vx, vy, zone);
+    }
   }
 }

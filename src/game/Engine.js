@@ -30,7 +30,7 @@ class Engine {
       this.aiManager = new AIManager();
       this.player = new Player(0, 0, this.inputManager);
 
-      this.loadZone('test2');
+      this.loadZone('test');
       this.isRunning = true;
       this.animationId = requestAnimationFrame(this.gameLoop.bind(this));
     } catch (error) {
@@ -39,22 +39,10 @@ class Engine {
   }
 
   loadZone(zoneName) {
-    this.currentZone = new Zone(zoneName); 
-
-    // PLAYER Setup
-    const startX = 128; 
-    const startY = 128;
-    this.player.x = startX; // Reset player position
-    this.player.y = startY;
-    this.currentZone.addEntity(this.player);
-
-    // TEMPORARY:  Enemy setup
-    for (let i = 0; i < 7; i++) {
-      const enemy = new Enemy(200 + i * 50, 200);
-      this.currentZone.addEntity(enemy);
-    }  
-
-    this.cameraManager.setMapBoundaries(this.currentZone.cols, this.currentZone.rows);
+    const zone = new Zone(zoneName);
+    zone.spawnEntity(this.player);
+    this.currentZone = zone;
+    this.cameraManager.setMapBoundaries(zone.cols, zone.rows);
     this.cameraManager.setTarget(this.player);
   }
 
@@ -70,20 +58,23 @@ class Engine {
   gameLoop(timestamp) {
     if (!this.isRunning) return;
 
+    // Prevent the first-frame "speed jump"
+    if (!this.lastTime) {
+      this.lastTime = timestamp;
+      requestAnimationFrame(this.gameLoop.bind(this));
+      return;
+    }
+
     let deltaTime = (timestamp - this.lastTime) / 1000;
     this.lastTime = timestamp;
 
-    // >>>>> ADDED FIX: Cap deltaTime to prevent massive jumps <<<<<
-    const maxDelta = 0.1; // Cap at 100ms
-    if (deltaTime > maxDelta) {
-      deltaTime = maxDelta;
-    }
-    // >>>>> FIX ENDS HERE <<<<<
+    // Cap deltaTime to prevent tunneling during lag spikes
+    if (deltaTime > 0.1) deltaTime = 0.1;
 
     this.update(deltaTime);
     this.draw();
     requestAnimationFrame(this.gameLoop.bind(this));
-}
+  }
 
   update(deltaTime) {
     this.currentZone.update(deltaTime);
@@ -93,7 +84,7 @@ class Engine {
 
   draw() {
     this.currentZone.gameObjects.sort((a, b) => a.bottomY - b.bottomY);
-    this.renderer.drawBackground(this.cameraManager, this.currentZone); 
+    this.renderer.drawBackground(this.cameraManager, this.currentZone);
     this.renderer.drawGameplay(this.cameraManager, this.currentZone.gameObjects);
   }
 }

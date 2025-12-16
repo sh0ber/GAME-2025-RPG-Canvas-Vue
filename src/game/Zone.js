@@ -1,21 +1,34 @@
 import { ZoneConfig } from '@/config/zones.js';
 import { GameConfig } from '@/config/config.js';
+import { Enemy } from '@/game/Enemy.js';
 
 export class Zone {
   constructor(name) {
-    const zoneData = ZoneConfig[name] || { mapData: [] };
+    const zoneData = ZoneConfig[name];
     this.name = name;
     this.mapData = zoneData.mapData;
     this.rows = zoneData.mapData.length;
     this.cols = this.rows > 0 ? zoneData.mapData[0].length : 0;
+    this.tileSize = GameConfig.TILE_SIZE;
 
+    this.spawnPoints = zoneData.spawnPoints;
     this.gameObjects = [];
     this.presenceMap = new Map();
-    this.tileSize = GameConfig.TILE_SIZE;
+
+    if (zoneData.enemies) {
+      zoneData.enemies.forEach(data => this.addEntity(new Enemy(data.x, data.y)));
+    }
   }
 
-  addEntity(obj) {
+  addEntity(obj, x, y) {
+    obj.x = x ?? obj.x;
+    obj.y = y ?? obj.y;
     this.gameObjects.push(obj);
+  }
+
+  spawnEntity(obj, spawnName) {
+    const spawnPoint = this.spawnPoints[spawnName] || this.spawnPoints['default'];
+    this.addEntity(obj, spawnPoint.x, spawnPoint.y);
   }
 
   update(deltaTime) {
