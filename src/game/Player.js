@@ -9,7 +9,7 @@ export class Player extends Character {
    */
   constructor(x, y, inputManager) {
     super(x, y);
-    this.speed = 300;
+    this.speed = 250;
     this.tileType = 2;
 
     this.faction = 'player';

@@ -34,7 +34,7 @@ export class AIManager {
       // 2. DEADZONE (Squared Check)
       const dx = actor.target.x - actor.x, dy = actor.target.y - actor.y;
       const distSq = dx * dx + dy * dy;
-      const rangeSq = (actor.attackRange || 30) ** 2;
+      const rangeSq = actor.attackRange ** 2;
 
       if (distSq <= rangeSq) {
         actor.velocity.x = 0; actor.velocity.y = 0;
