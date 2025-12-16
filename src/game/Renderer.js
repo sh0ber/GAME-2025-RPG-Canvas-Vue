@@ -1,16 +1,16 @@
 import { GameConfig } from '@/config/config.js';
 
+const TILE_COLORS = {
+  0: '#666666', // Wall
+  1: '#086741', // Floor
+  2: '#FFFF00', // Player
+  3: '#FF0000', // Enemy
+  4: '#000099', // NPC
+};
+
 export function renderTile(ctx, tileType, x, y) {
-    if (tileType === 0) { 
-        ctx.fillStyle = '#4444FF'; // Wall
-    } 
-    else if (tileType === 1) { 
-        ctx.fillStyle = '#086741'; // Floor 
-    }
-    else {
-        ctx.fillStyle = '#FF0000'; // Default: RED for player or unknown tiles
-    }
-    ctx.fillRect(x, y, GameConfig.TILE_SIZE, GameConfig.TILE_SIZE);
+  ctx.fillStyle = TILE_COLORS[tileType] || '#FF00FF'; // Magenta for unknown
+  ctx.fillRect(x, y, GameConfig.TILE_SIZE, GameConfig.TILE_SIZE);
 }
 
 export class Renderer {
@@ -46,7 +46,7 @@ export class Renderer {
 
     // Get the exact range of tiles within the viewport (including a small buffer)
     const { startCol, endCol, startRow, endRow } = cameraManager.getVisibleGridBoundaries();
-    
+
     const cameraX = cameraManager.x;
     const cameraY = cameraManager.y;
 
