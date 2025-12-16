@@ -2,9 +2,7 @@ import { Renderer } from '@/game/Renderer.js';
 import { Zone } from '@/game/Zone.js';
 import { CameraManager } from '@/game/CameraManager.js';
 import { InputManager } from '@/game/InputManager.js';
-import { AIManager } from '@/game/AIManager.js';
 import { Player } from '@/game/Player.js';
-import { Enemy } from '@/game/Enemy.js';
 
 // Singleton
 class Engine {
@@ -16,7 +14,6 @@ class Engine {
     this.renderer = null;
     this.cameraManager = null;
     this.inputManager = null;
-    this.aiManager = null;
 
     this.currentZone = null;
     this.player = null;
@@ -27,7 +24,6 @@ class Engine {
       this.renderer = new Renderer();
       this.cameraManager = new CameraManager();
       this.inputManager = new InputManager();
-      this.aiManager = new AIManager();
       this.player = new Player(0, 0, this.inputManager);
 
       this.loadZone('test');
@@ -78,7 +74,6 @@ class Engine {
 
   update(deltaTime) {
     this.currentZone.update(deltaTime);
-    this.aiManager.processAI(deltaTime, this.currentZone, this.player);
     this.cameraManager.update();
   }
 

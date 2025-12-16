@@ -9,6 +9,8 @@ export class Character {
     this.width = GameConfig.TILE_SIZE;
     this.height = GameConfig.TILE_SIZE;
     this.speed = 100;
+    this.attackRange = 30; // Eventually weapon based
+
     this.faction = 'neutral';
     this.effects = [];
     this.target = null;

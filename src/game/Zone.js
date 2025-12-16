@@ -1,5 +1,6 @@
 import { ZoneConfig } from '@/config/zones.js';
 import { GameConfig } from '@/config/config.js';
+import { AIManager } from '@/game/AIManager.js';
 import { Enemy } from '@/game/Enemy.js';
 
 export class Zone {
@@ -13,7 +14,11 @@ export class Zone {
 
     this.spawnPoints = zoneData.spawnPoints;
     this.gameObjects = [];
-    this.presenceMap = new Map();
+    
+    // Optimized Spatial Grid
+    this.presenceGrid = []; 
+
+    this.aiManager = new AIManager();
 
     if (zoneData.enemies) {
       zoneData.enemies.forEach(data => this.addEntity(new Enemy(data.x, data.y)));
@@ -32,37 +37,54 @@ export class Zone {
   }
 
   update(deltaTime) {
-    this.gameObjects.forEach(obj => obj.update(deltaTime, this));
     this.refreshPresenceMap(this.gameObjects);
-  }
-
-  // Called once per frame by the Engine to refresh the grid
-  refreshPresenceMap(gameObjects) {
-    this.presenceMap.clear();
-    for (const obj of gameObjects) {
-      const col = Math.floor(obj.x / this.tileSize);
-      const row = Math.floor(obj.y / this.tileSize);
-      const key = `${col}_${row}`;
-
-      if (!this.presenceMap.has(key)) this.presenceMap.set(key, []);
-      this.presenceMap.get(key).push(obj);
+    // Standard update for cooldowns/logic
+    for (let i = 0; i < this.gameObjects.length; i++) {
+        this.gameObjects[i].update(deltaTime, this);
     }
+    this.aiManager.processAI(deltaTime, this);
   }
 
-  // Helper for the AIManager to find neighbors without coordinate math
-  getNearby(originObj, radius = 1) { // Add radius parameter
-    const col = Math.floor(originObj.x / this.tileSize);
-    const row = Math.floor(originObj.y / this.tileSize);
-    let neighbors = [];
+  refreshPresenceMap(gameObjects) {
+    const totalCells = this.rows * this.cols;
+    
+    if (!this.presenceGrid || this.presenceGrid.length !== totalCells) {
+      this.presenceGrid = Array.from({ length: totalCells }, () => []);
+    }
 
-    for (let i = -radius; i <= radius; i++) { // Use radius here
-      for (let j = -radius; j <= radius; j++) {
-        const key = `${col + i}_${row + j}`;
-        const registry = this.presenceMap.get(key);
-        if (registry) neighbors.push(...registry);
+    for (let i = 0; i < totalCells; i++) {
+      this.presenceGrid[i].length = 0;
+    }
+
+    for (let i = 0; i < gameObjects.length; i++) {
+      const obj = gameObjects[i];
+      const col = (obj.x / this.tileSize) | 0;
+      const row = (obj.y / this.tileSize) | 0;
+      
+      if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
+        this.presenceGrid[row * this.cols + col].push(obj);
       }
     }
-    return neighbors.filter(obj => obj !== originObj);
+  }
+
+  getNearby(originObj, radius = 1) {
+    const col = (originObj.x / this.tileSize) | 0;
+    const row = (originObj.y / this.tileSize) | 0;
+    const neighbors = [];
+
+    for (let r = row - radius; r <= row + radius; r++) {
+      if (r < 0 || r >= this.rows) continue;
+      const rowOffset = r * this.cols;
+      for (let c = col - radius; c <= col + radius; c++) {
+        if (c < 0 || c >= this.cols) continue;
+        
+        const cell = this.presenceGrid[rowOffset + c];
+        for (let i = 0; i < cell.length; i++) {
+          neighbors.push(cell[i]);
+        }
+      }
+    }
+    return neighbors; 
   }
 
   getTileType(row, col) {
