@@ -7,7 +7,7 @@ import { Player } from '@/game/Player.js';
 // Singleton
 class Engine {
   constructor() {
-    this.isRunning = false;
+    this.isPaused = false;
     this.animationId = null;
     this.lastTime = 0;
 
@@ -25,16 +25,15 @@ class Engine {
       this.cameraManager = new CameraManager();
       this.inputManager = new InputManager();
       this.player = new Player(0, 0, this.inputManager);
+      await this.loadZone('test');
 
-      this.loadZone('test');
-      this.isRunning = true;
-      this.animationId = requestAnimationFrame(this.gameLoop.bind(this));
+      this.start(); 
     } catch (error) {
       console.error("Failed to initialize game", error);
     }
   }
 
-  loadZone(zoneName) {
+  async loadZone(zoneName) {
     const zone = new Zone(zoneName);
     zone.spawnEntity(this.player);
     this.currentZone = zone;
@@ -42,34 +41,22 @@ class Engine {
     this.cameraManager.setTarget(this.player);
   }
 
-  gameLoop(timestamp) {
-    if (!this.isRunning) return;
-    const deltaTime = (timestamp - this.lastTime) / 1000;
-    this.lastTime = timestamp;
-    this.update(deltaTime);
-    this.draw();
-    requestAnimationFrame(this.gameLoop.bind(this));
-  }
+  start() {
+    let last = performance.now();
 
-  gameLoop(timestamp) {
-    if (!this.isRunning) return;
+    const loop = (now) => {
+      const elapsed = (now - last) / 1000;
+      const rawDt = Math.min(elapsed, 0.1);
+      const dt = this.isPaused ? 0 : rawDt * (this.timeScale || 1);
+      last = now;
 
-    // Prevent the first-frame "speed jump"
-    if (!this.lastTime) {
-      this.lastTime = timestamp;
-      requestAnimationFrame(this.gameLoop.bind(this));
-      return;
-    }
+      this.update(dt); // When paused, we still update, but with dt = 0
+      this.draw();
 
-    let deltaTime = (timestamp - this.lastTime) / 1000;
-    this.lastTime = timestamp;
+      this.frameId = requestAnimationFrame(loop);
+    };
 
-    // Cap deltaTime to prevent tunneling during lag spikes
-    if (deltaTime > 0.1) deltaTime = 0.1;
-
-    this.update(deltaTime);
-    this.draw();
-    requestAnimationFrame(this.gameLoop.bind(this));
+    this.frameId = requestAnimationFrame(loop);
   }
 
   update(deltaTime) {
