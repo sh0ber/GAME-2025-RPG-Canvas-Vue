@@ -29,8 +29,7 @@ export class Player extends Character {
     if (this.input.isKeyDown('ArrowRight') || this.input.isKeyDown('d')) dirX += 1;
 
     if (dirX !== 0 || dirY !== 0) {
-      const factor = (dirX !== 0 && dirY !== 0) ? 0.70710678 : 1;
-      this.move(dirX * factor, dirY * factor, deltaTime, zone);
+      this.move(dirX, dirY, deltaTime, zone);
     }
   }
 }

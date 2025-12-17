@@ -14,9 +14,9 @@ export class Zone {
 
     this.spawnPoints = zoneData.spawnPoints;
     this.npcs = [];
-    
+
     // Optimized Spatial Grid
-    this.presenceGrid = []; 
+    this.presenceGrid = [];
 
     this.aiManager = new AIManager();
 
@@ -40,14 +40,32 @@ export class Zone {
     this.refreshPresenceMap(this.npcs);
     // Standard update for cooldowns/logic
     for (let i = 0; i < this.npcs.length; i++) {
-        this.npcs[i].update(deltaTime, this);
+      this.npcs[i].update(deltaTime, this);
     }
     this.aiManager.processAI(deltaTime, this);
   }
 
+  checkCollision(entity, nextX, nextY) {
+    const inset = 2;
+    // Use isPixelWalkable here because nextX/nextY are raw pixel coordinates
+    return (
+      !this.isPixelWalkable(nextX + inset, nextY + inset) ||
+      !this.isPixelWalkable(nextX + entity.width - inset, nextY + inset) ||
+      !this.isPixelWalkable(nextX + inset, nextY + entity.height - inset) ||
+      !this.isPixelWalkable(nextX + entity.width - inset, nextY + entity.height - inset)
+    );
+  }
+
+  clamp(entity) {
+    const maxX = (this.cols * this.tileSize) - entity.width;
+    const maxY = (this.rows * this.tileSize) - entity.height;
+    entity.x = Math.max(0, Math.min(entity.x, maxX));
+    entity.y = Math.max(0, Math.min(entity.y, maxY));
+  }
+
   refreshPresenceMap(npcs) {
     const totalCells = this.rows * this.cols;
-    
+
     if (!this.presenceGrid || this.presenceGrid.length !== totalCells) {
       this.presenceGrid = Array.from({ length: totalCells }, () => []);
     }
@@ -60,7 +78,7 @@ export class Zone {
       const obj = npcs[i];
       const col = (obj.x / this.tileSize) | 0;
       const row = (obj.y / this.tileSize) | 0;
-      
+
       if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
         this.presenceGrid[row * this.cols + col].push(obj);
       }
@@ -77,14 +95,14 @@ export class Zone {
       const rowOffset = r * this.cols;
       for (let c = col - radius; c <= col + radius; c++) {
         if (c < 0 || c >= this.cols) continue;
-        
+
         const cell = this.presenceGrid[rowOffset + c];
         for (let i = 0; i < cell.length; i++) {
           neighbors.push(cell[i]);
         }
       }
     }
-    return neighbors; 
+    return neighbors;
   }
 
   getTileType(row, col) {
@@ -92,7 +110,14 @@ export class Zone {
     return this.mapData[row][col];
   }
 
-  isSolid(row, col) {
-    return this.getTileType(row, col) === 0;
+  isPixelWalkable(px, py) {
+    const col = (px / this.tileSize) | 0;
+    const row = (py / this.tileSize) | 0;
+    if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) return false;
+    return this.isTileWalkable(row, col);
+  }
+
+  isTileWalkable(row, col) {
+    return this.getTileType(row, col) !== 0;
   }
 }

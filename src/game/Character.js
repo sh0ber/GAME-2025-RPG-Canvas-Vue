@@ -37,6 +37,7 @@ export class Character {
   get centerY() { return this.y + this.height / 2; }
   get bottomY() { return this.y + this.height; }
 
+  // == Gameplay
   update(deltaTime, zone) {
     // Update effects
     this.effects = this.effects.filter(effect => {
@@ -46,39 +47,14 @@ export class Character {
     });
   }
 
+  // == Spatial
   move(dirX, dirY, deltaTime, zone) {
-    // This is the ONLY place speed and deltaTime are applied
     const vx = dirX * this.speed * deltaTime;
     const vy = dirY * this.speed * deltaTime;
 
-    if (!this.isCollidingAt(this.x + vx, this.y, zone)) this.x += vx;
-    if (!this.isCollidingAt(this.x, this.y + vy, zone)) this.y += vy;
-  }
-
-  isCollidingAt(newX, newY, zone) {
-    const inset = 2;
-
-    const isBlocked =
-      !this.isTileWalkable(newX + inset, newY + inset, zone) ||
-      !this.isTileWalkable(newX + this.width - inset, newY + inset, zone) ||
-      !this.isTileWalkable(newX + inset, newY + this.height - inset, zone) ||
-      !this.isTileWalkable(newX + this.width - inset, newY + this.height - inset, zone);
-
-    return isBlocked;
-  }
-
-  isTileWalkable(px, py, zone) {
-    const col = (px / zone.tileSize) | 0;
-    const row = (py / zone.tileSize) | 0;
-    const isWithinBounds = row >= 0 && row < zone.rows && col >= 0 && col < zone.cols;
-    if (!isWithinBounds) return false;
-    return !zone.isSolid(row, col);
-  }
-
-  clampToBoundaries(zone) {
-    const maxX = (zone.cols * zone.tileSize) - this.width;
-    const maxY = (zone.rows * zone.tileSize) - this.height;
-    if (this.x < 0) this.x = 0; else if (this.x > maxX) this.x = maxX;
-    if (this.y < 0) this.y = 0; else if (this.y > maxY) this.y = maxY;
+    if (!zone.checkCollision(this, this.x + vx, this.y)) this.x += vx;
+    if (!zone.checkCollision(this, this.x, this.y + vy)) this.y += vy;
+    
+    zone.clamp(this);
   }
 }

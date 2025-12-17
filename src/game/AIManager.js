@@ -2,7 +2,7 @@ import { Enemy } from '@/game/Enemy.js';
 
 export class AIManager {
   constructor() {
-    this.moveThresholdSq = 0.0025; 
+    this.moveThresholdSq = 0.0025;
   }
 
   processAI(deltaTime, zone) {
@@ -10,7 +10,7 @@ export class AIManager {
 
     for (let i = 0; i < npcs.length; i++) {
       const npc = npcs[i];
-      
+
       // 1. DYNAMIC CHECK: Does this character have AI capabilities?
       // We check if it has the steering method, allowing any class to opt-in.
       if (typeof npc.calculateSteeringForce !== 'function') continue;
@@ -21,7 +21,6 @@ export class AIManager {
         // Spatial Optimization: Only check within aggro range
         const cellRadius = Math.ceil(npc.aggroRange / zone.tileSize);
         const candidates = zone.getNearby(npc, cellRadius);
-        
         npc.target = this.findNearestHostile(npc, candidates);
       }
 
@@ -32,7 +31,7 @@ export class AIManager {
 
       // 4. MOVEMENT
       const force = npc.calculateSteeringForce(zone);
-      
+
       // Pass normalized intent to Character.move
       npc.move(force.x, force.y, deltaTime, zone);
     }
@@ -40,7 +39,7 @@ export class AIManager {
 
   findNearestHostile(npc, candidates) {
     const policy = npc.huntPolicy;
-    if (!policy || policy === 'none') return null;
+    if (policy.length === 0) return null;
 
     let currentMinDistSq = npc.aggroRange * npc.aggroRange;
     let closest = null;
@@ -48,20 +47,10 @@ export class AIManager {
     for (let i = 0; i < candidates.length; i++) {
       const target = candidates[i];
 
-      // Skip self, inactive targets, or targets on the same team (unless 'all' policy)
-      if (target === npc || target.isEnabled === false) continue;
+      // Skip self, inactive targets, or targets not in hunt policy
+      if (target === npc || !target.isEnabled || !target.isAlive) continue;
+      if (!policy.includes(target.faction)) continue;
 
-      // Policy Filter
-      let isHuntable = false;
-      if (policy === 'all') {
-        isHuntable = target.faction !== 'neutral';
-      } else if (Array.isArray(policy)) {
-        isHuntable = policy.includes(target.faction);
-      }
-
-      if (!isHuntable) continue;
-
-      // Distance Check
       const dx = target.x - npc.x;
       const dy = target.y - npc.y;
       const dSq = dx * dx + dy * dy;
