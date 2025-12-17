@@ -8,6 +8,8 @@ export class Character {
     // Spatial
     this.x = x;
     this.y = y;
+    this.xSpawn = x; // Remember spawn point for respawns / leash
+    this.ySpawn = y; // Remember spawn point for respawns / leash
     this.width = GameConfig.TILE_SIZE;
     this.height = GameConfig.TILE_SIZE;
 
