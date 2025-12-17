@@ -30,11 +30,7 @@ export class Player extends Character {
 
     if (dirX !== 0 || dirY !== 0) {
       const factor = (dirX !== 0 && dirY !== 0) ? 0.70710678 : 1;
-
-      const vx = dirX * this.speed * factor * deltaTime;
-      const vy = dirY * this.speed * factor * deltaTime;
-
-      this.move(vx, vy, zone);
+      this.move(dirX * factor, dirY * factor, deltaTime, zone);
     }
   }
 }

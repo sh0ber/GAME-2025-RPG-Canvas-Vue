@@ -10,8 +10,10 @@ const fastDist = (dx, dy) => {
 export class Enemy extends Character {
   constructor(x, y) {
     super(x, y);
+    this.isAIControlled = true;
     this.speed = 150;
     this.faction = 'monster';
+    this.huntPolicy = ['player'];
     this.tileType = 3;
 
     this.aggroRange = 300;

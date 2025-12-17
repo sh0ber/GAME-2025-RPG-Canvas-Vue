@@ -13,7 +13,7 @@ export class Zone {
     this.tileSize = GameConfig.TILE_SIZE;
 
     this.spawnPoints = zoneData.spawnPoints;
-    this.gameObjects = [];
+    this.npcs = [];
     
     // Optimized Spatial Grid
     this.presenceGrid = []; 
@@ -28,7 +28,7 @@ export class Zone {
   addEntity(obj, x, y) {
     obj.x = x ?? obj.x;
     obj.y = y ?? obj.y;
-    this.gameObjects.push(obj);
+    this.npcs.push(obj);
   }
 
   spawnEntity(obj, spawnName) {
@@ -37,15 +37,15 @@ export class Zone {
   }
 
   update(deltaTime) {
-    this.refreshPresenceMap(this.gameObjects);
+    this.refreshPresenceMap(this.npcs);
     // Standard update for cooldowns/logic
-    for (let i = 0; i < this.gameObjects.length; i++) {
-        this.gameObjects[i].update(deltaTime, this);
+    for (let i = 0; i < this.npcs.length; i++) {
+        this.npcs[i].update(deltaTime, this);
     }
     this.aiManager.processAI(deltaTime, this);
   }
 
-  refreshPresenceMap(gameObjects) {
+  refreshPresenceMap(npcs) {
     const totalCells = this.rows * this.cols;
     
     if (!this.presenceGrid || this.presenceGrid.length !== totalCells) {
@@ -56,8 +56,8 @@ export class Zone {
       this.presenceGrid[i].length = 0;
     }
 
-    for (let i = 0; i < gameObjects.length; i++) {
-      const obj = gameObjects[i];
+    for (let i = 0; i < npcs.length; i++) {
+      const obj = npcs[i];
       const col = (obj.x / this.tileSize) | 0;
       const row = (obj.y / this.tileSize) | 0;
       

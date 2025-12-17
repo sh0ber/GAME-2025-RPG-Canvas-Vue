@@ -64,11 +64,11 @@ export class Renderer {
     }
   }
 
-  drawGameplay(cameraManager, gameObjects) {
+  drawGameplay(cameraManager, npcs) {
     const ctx = this.ctxGp;
     this.ctxGp.clearRect(0, 0, cameraManager.width, cameraManager.height);
 
-    for (const obj of gameObjects) {
+    for (const obj of npcs) {
       if (
         obj.x + obj.width > cameraManager.x &&
         obj.x < cameraManager.x + cameraManager.width &&

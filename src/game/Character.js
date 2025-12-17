@@ -1,23 +1,34 @@
 import { GameConfig } from '@/config/config.js';
+// TODO:  Character pooling!  When a character dies, put it in a pool to be reused later.
 
 const DIAGONAL_FACTOR = 0.70710678;
 
 export class Character {
   constructor(x, y) {
-    // State
+    // Spatial
     this.x = x;
     this.y = y;
     this.width = GameConfig.TILE_SIZE;
     this.height = GameConfig.TILE_SIZE;
 
-    // Characteristics
+    // Stats
     this.speed = 100;
+    this.atkSpd = 1.0;
     this.attackRange = 30; // Eventually weapon based
+
+    // Personality
     this.faction = 'neutral';
 
     // Gameplay
     this.effects = [];
     this.target = null;
+
+    // AI
+    this.isAIControlled = false;
+
+    // Lifecycle
+    this.isEnabled = true; // Technical state: Is this object currently in the AI/Physics loops?
+    this.isAlive = true; // Gameplay state: Is this character still a participant in combat?
   }
 
   get centerX() { return this.x + this.width / 2; }
@@ -33,20 +44,23 @@ export class Character {
     });
   }
 
-  move(vx, vy, zone) {
+  move(dirX, dirY, deltaTime, zone) {
+    // This is the ONLY place speed and deltaTime are applied
+    const vx = dirX * this.speed * deltaTime;
+    const vy = dirY * this.speed * deltaTime;
+
     if (!this.isCollidingAt(this.x + vx, this.y, zone)) this.x += vx;
     if (!this.isCollidingAt(this.x, this.y + vy, zone)) this.y += vy;
   }
 
-  isCollidingAt(tx, ty, zone) {
-    const inset = 2; // Avoiding magic numbers
+  isCollidingAt(newX, newY, zone) {
+    const inset = 2;
 
-    // If any corner of the hitbox is NOT walkable, we are colliding
     const isBlocked =
-      !this.isTileWalkable(tx + inset, ty + inset, zone) ||
-      !this.isTileWalkable(tx + this.width - inset, ty + inset, zone) ||
-      !this.isTileWalkable(tx + inset, ty + this.height - inset, zone) ||
-      !this.isTileWalkable(tx + this.width - inset, ty + this.height - inset, zone);
+      !this.isTileWalkable(newX + inset, newY + inset, zone) ||
+      !this.isTileWalkable(newX + this.width - inset, newY + inset, zone) ||
+      !this.isTileWalkable(newX + inset, newY + this.height - inset, zone) ||
+      !this.isTileWalkable(newX + this.width - inset, newY + this.height - inset, zone);
 
     return isBlocked;
   }

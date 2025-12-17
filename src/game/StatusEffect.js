@@ -3,22 +3,22 @@ export class StatusEffect {
     this.name = name;
     this.duration = duration; // in milliseconds
   }
-  onApply(actor) {}
-  onTick(actor, deltaTime) { this.duration -= deltaTime; }
-  onRemove(actor) {}
+  onApply(npc) {}
+  onTick(npc, deltaTime) { this.duration -= deltaTime; }
+  onRemove(npc) {}
 }
 
 export class CharmEffect extends StatusEffect {
   constructor(duration) { super('Charm', duration); }
   
-  onApply(actor) {
-    actor.originalFaction = actor.faction;
-    actor.faction = 'player'; // Temporary faction swap
-    actor.target = null;      // Reset target to re-evaluate
+  onApply(npc) {
+    npc.originalFaction = npc.faction;
+    npc.faction = 'player'; // Temporary faction swap
+    npc.target = null;      // Reset target to re-evaluate
   }
 
-  onRemove(actor) {
-    actor.faction = actor.originalFaction;
-    actor.target = null;
+  onRemove(npc) {
+    npc.faction = npc.originalFaction;
+    npc.target = null;
   }
 }

@@ -6,46 +6,69 @@ export class AIManager {
   }
 
   processAI(deltaTime, zone) {
-    // 1. Get only active enemies from the spatial hash/grid
-    const enemies = zone.gameObjects.filter(obj => obj instanceof Enemy);
+    const npcs = zone.npcs;
 
-    for (const actor of enemies) {
-      // 1. Target Acquisition
-      if (!actor.target || actor.target.active === false) {
-        actor.target = this.findNearestHostile(actor, zone);
-      }
-
-      if (!actor.target) continue;
-
-      // 2. Get the direction from the Actor
-      // This calls the logic we moved into the Enemy class
-      const force = actor.calculateSteeringForce(zone);
+    for (let i = 0; i < npcs.length; i++) {
+      const npc = npcs[i];
       
-      // 3. APPLY MOVEMENT (The missing link)
-      const vx = force.x * actor.speed * deltaTime;
-      const vy = force.y * actor.speed * deltaTime;
+      // 1. DYNAMIC CHECK: Does this character have AI capabilities?
+      // We check if it has the steering method, allowing any class to opt-in.
+      if (typeof npc.calculateSteeringForce !== 'function') continue;
 
-      // Jitter-free check
-      if ((vx * vx + vy * vy) > this.moveThresholdSq) {
-        actor.move(vx, vy, zone);
+      // 2. TARGET ACQUISITION
+      // If it doesn't have a target, or target is dead/gone
+      if (!npc.target || npc.target.isEnabled === false) {
+        // Spatial Optimization: Only check within aggro range
+        const cellRadius = Math.ceil(npc.aggroRange / zone.tileSize);
+        const candidates = zone.getNearby(npc, cellRadius);
+        
+        npc.target = this.findNearestHostile(npc, candidates);
       }
+
+      if (!npc.target) continue;
+
+      // 3. TARGET PERSISTENCE (Optional Leashing)
+      // If your NPC has its own leashing logic in update(), it will handle clearing target.
+
+      // 4. MOVEMENT
+      const force = npc.calculateSteeringForce(zone);
+      
+      // Pass normalized intent to Character.move
+      npc.move(force.x, force.y, deltaTime, zone);
     }
   }
 
-  findNearestHostile(actor, zone) {
-    let currentMinDistSq = (actor.aggroRange || 500) ** 2;
+  findNearestHostile(npc, candidates) {
+    const policy = npc.huntPolicy;
+    if (!policy || policy === 'none') return null;
+
+    let currentMinDistSq = npc.aggroRange * npc.aggroRange;
     let closest = null;
 
-    for (let i = 0; i < zone.gameObjects.length; i++) {
-      const obj = zone.gameObjects[i];
-      if (obj.faction !== actor.faction && obj.faction !== 'neutral' && obj.active !== false) {
-        const dx = obj.x - actor.x;
-        const dy = obj.y - actor.y;
-        const dSq = dx * dx + dy * dy;
-        if (dSq < currentMinDistSq) {
-          currentMinDistSq = dSq;
-          closest = obj;
-        }
+    for (let i = 0; i < candidates.length; i++) {
+      const target = candidates[i];
+
+      // Skip self, inactive targets, or targets on the same team (unless 'all' policy)
+      if (target === npc || target.isEnabled === false) continue;
+
+      // Policy Filter
+      let isHuntable = false;
+      if (policy === 'all') {
+        isHuntable = target.faction !== 'neutral';
+      } else if (Array.isArray(policy)) {
+        isHuntable = policy.includes(target.faction);
+      }
+
+      if (!isHuntable) continue;
+
+      // Distance Check
+      const dx = target.x - npc.x;
+      const dy = target.y - npc.y;
+      const dSq = dx * dx + dy * dy;
+
+      if (dSq < currentMinDistSq) {
+        currentMinDistSq = dSq;
+        closest = target;
       }
     }
     return closest;
