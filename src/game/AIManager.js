@@ -2,90 +2,52 @@ import { Enemy } from '@/game/Enemy.js';
 
 export class AIManager {
   constructor() {
-    this.minDist = 28; 
-    this.minDistSq = 784; 
-    this.moveThresholdSq = 0.0025; // (0.05 * 0.05) to avoid sqrt in threshold check
+    this.moveThresholdSq = 0.0025; 
   }
 
   processAI(deltaTime, zone) {
-    const allObjects = zone.gameObjects;
-    const enemies = allObjects.filter(obj => obj instanceof Enemy);
+    // 1. Get only active enemies from the spatial hash/grid
+    const enemies = zone.gameObjects.filter(obj => obj instanceof Enemy);
 
-    for (let i = 0; i < enemies.length; i++) {
-      const actor = enemies[i];
-
-      // 1. TARGET ACQUISITION (Squared Check)
-      if (!actor.target) {
-        let currentMinDistSq = (actor.aggroRange || 500) ** 2;
-        for (let j = 0; j < allObjects.length; j++) {
-          const obj = allObjects[j];
-          if (obj.faction !== actor.faction && obj.faction !== 'neutral') {
-            const dx = obj.x - actor.x, dy = obj.y - actor.y;
-            const dSq = dx * dx + dy * dy;
-            if (dSq < currentMinDistSq) {
-              currentMinDistSq = dSq;
-              actor.target = obj;
-            }
-          }
-        }
+    for (const actor of enemies) {
+      // 1. Target Acquisition
+      if (!actor.target || actor.target.active === false) {
+        actor.target = this.findNearestHostile(actor, zone);
       }
+
       if (!actor.target) continue;
 
-      // 2. DEADZONE (Squared Check)
-      const dx = actor.target.x - actor.x, dy = actor.target.y - actor.y;
-      const distSq = dx * dx + dy * dy;
-      const rangeSq = actor.attackRange ** 2;
-
-      if (distSq <= rangeSq) {
-        actor.velocity.x = 0; actor.velocity.y = 0;
-        continue; 
-      }
-
-      // 3. FORCE CALCULATION (Approximation)
-      let forceX = 0, forceY = 0;
+      // 2. Get the direction from the Actor
+      // This calls the logic we moved into the Enemy class
+      const force = actor.calculateSteeringForce(zone);
       
-      // Inline absolute values for FastDist
-      const adx = dx < 0 ? -dx : dx;
-      const ady = dy < 0 ? -dy : dy;
-      const d = adx > ady ? (0.96 * adx + 0.4 * ady) : (0.96 * ady + 0.4 * adx);
-      
-      forceX = dx / d;
-      forceY = dy / d;
+      // 3. APPLY MOVEMENT (The missing link)
+      const vx = force.x * actor.speed * deltaTime;
+      const vy = force.y * actor.speed * deltaTime;
 
-      // Neighbor Separation (Squared Gate)
-      const neighbors = zone.getNearby(actor, 1);
-      for (let n = 0; n < neighbors.length; n++) {
-        const neighbor = neighbors[n];
-        if (neighbor === actor || !(neighbor instanceof Enemy)) continue;
-
-        const nx = actor.x - neighbor.x, ny = actor.y - neighbor.y;
-        const nDistSq = nx * nx + ny * ny;
-
-        if (nDistSq < this.minDistSq && nDistSq > 0) {
-          const anx = nx < 0 ? -nx : nx;
-          const any = ny < 0 ? -ny : ny;
-          const nD = anx > any ? (0.96 * anx + 0.4 * any) : (0.96 * any + 0.4 * anx);
-          
-          const push = (this.minDist - nD) / this.minDist;
-          forceX += (nx / nD) * push;
-          forceY += (ny / nD) * push;
-        }
+      // Jitter-free check
+      if ((vx * vx + vy * vy) > this.moveThresholdSq) {
+        actor.move(vx, vy, zone);
       }
+    }
+  }
 
-      // 4. JITTER-FREE MOVEMENT
-      const afx = forceX < 0 ? -forceX : forceX;
-      const afy = forceY < 0 ? -forceY : forceY;
-      const fMag = afx > afy ? (0.96 * afx + 0.4 * afy) : (0.96 * afy + 0.4 * afx);
+  findNearestHostile(actor, zone) {
+    let currentMinDistSq = (actor.aggroRange || 500) ** 2;
+    let closest = null;
 
-      if (fMag > 0.01) {
-        const vx = (forceX / fMag) * actor.speed * deltaTime;
-        const vy = (forceY / fMag) * actor.speed * deltaTime;
-        
-        // Threshold Check (Squared to skip another sqrt)
-        if ((vx * vx + vy * vy) > this.moveThresholdSq) {
-          actor.move(vx, vy, zone);
+    for (let i = 0; i < zone.gameObjects.length; i++) {
+      const obj = zone.gameObjects[i];
+      if (obj.faction !== actor.faction && obj.faction !== 'neutral' && obj.active !== false) {
+        const dx = obj.x - actor.x;
+        const dy = obj.y - actor.y;
+        const dSq = dx * dx + dy * dy;
+        if (dSq < currentMinDistSq) {
+          currentMinDistSq = dSq;
+          closest = obj;
         }
       }
     }
+    return closest;
   }
 }
