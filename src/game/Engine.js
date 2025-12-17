@@ -7,9 +7,10 @@ import { Player } from '@/game/Player.js';
 // Singleton
 class Engine {
   constructor() {
+    this.isStopped = true;
     this.isPaused = false;
-    this.animationId = null;
-    this.lastTime = 0;
+    this.timeScale = 1.0;
+    this.frameId = null;
 
     this.renderer = null;
     this.cameraManager = null;
@@ -25,29 +26,25 @@ class Engine {
       this.cameraManager = new CameraManager();
       this.inputManager = new InputManager();
       this.player = new Player(0, 0, this.inputManager);
+
       await this.loadZone('test');
 
-      this.start(); 
+      this.isStopped = false; // "The Engine Switch"
+      this.isPaused = false;  // "The Gameplay Switch"
+      this.start();
     } catch (error) {
       console.error("Failed to initialize game", error);
     }
-  }
-
-  async loadZone(zoneName) {
-    const zone = new Zone(zoneName);
-    zone.spawnEntity(this.player);
-    this.currentZone = zone;
-    this.cameraManager.setMapBoundaries(zone.cols, zone.rows);
-    this.cameraManager.setTarget(this.player);
   }
 
   start() {
     let last = performance.now();
 
     const loop = (now) => {
+      if (this.isStopped) return;
       const elapsed = (now - last) / 1000;
       const rawDt = Math.min(elapsed, 0.1);
-      const dt = this.isPaused ? 0 : rawDt * (this.timeScale || 1);
+      const dt = this.isPaused ? 0 : rawDt * this.timeScale;
       last = now;
 
       this.update(dt); // When paused, we still update, but with dt = 0
@@ -57,6 +54,30 @@ class Engine {
     };
 
     this.frameId = requestAnimationFrame(loop);
+  }
+
+  stop() {
+    this.isStopped = true; // Prevents the loop from ever calling itself again
+    if (this.frameId) {
+      cancelAnimationFrame(this.frameId); // Kills the "pending" frame request immediately
+      this.frameId = null;
+    }
+  }
+
+  pause() {
+    this.isPaused = true;
+  }
+
+  resume() {
+    this.isPaused = false;
+  }
+
+  async loadZone(zoneName) {
+    const zone = new Zone(zoneName);
+    zone.spawnEntity(this.player);
+    this.currentZone = zone;
+    this.cameraManager.setMapBoundaries(zone.cols, zone.rows);
+    this.cameraManager.setTarget(this.player);
   }
 
   update(deltaTime) {
