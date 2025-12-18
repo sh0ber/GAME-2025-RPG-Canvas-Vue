@@ -64,35 +64,22 @@ export class Renderer {
     }
   }
 
-  drawGameplay(cameraManager, system) {
+  drawGameplay(cameraManager, npcs) {
     const ctx = this.ctxGp;
-    ctx.clearRect(0, 0, cameraManager.width, cameraManager.height);
+    this.ctxGp.clearRect(0, 0, cameraManager.width, cameraManager.height);
 
-    const camX = cameraManager.x;
-    const camY = cameraManager.y;
-    const camW = cameraManager.width;
-    const camH = cameraManager.height;
+    for (const obj of npcs) {
+      if (
+        obj.x + obj.width > cameraManager.x &&
+        obj.x < cameraManager.x + cameraManager.width &&
+        obj.y + obj.height > cameraManager.y &&
+        obj.y < cameraManager.y + cameraManager.height
+      ) {
+        // Calculate screen coordinates once
+        const screenX = obj.x - cameraManager.x;
+        const screenY = obj.y - cameraManager.y;
 
-    // Iterate through all active IDs in the system
-    for (let i = 0; i < system.activeCount; i++) {
-      const x = system.x[i];
-      const y = system.y[i];
-      const w = system.width[i];
-      const h = system.height[i];
-
-      // Viewport Culling: Only draw if within camera bounds
-      if (x + w > camX && x < camX + camW && y + h > camY && y < camY + camH) {
-        const screenX = Math.floor(x - camX);
-        const screenY = Math.floor(y - camY);
-
-        // Map faction ID back to your TILE_COLORS
-        // 1: Hero, 2: Monster, 4: NPC
-        const faction = system.factions[i];
-        let tileType = 4; // Default NPC
-        if (faction === 1) tileType = 2; // Hero
-        if (faction === 2) tileType = 3; // Monster
-
-        renderTile(ctx, tileType, screenX, screenY);
+        renderTile(ctx, obj.tileType, screenX, screenY);
       }
     }
   }

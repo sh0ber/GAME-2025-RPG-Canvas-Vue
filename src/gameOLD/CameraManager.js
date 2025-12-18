@@ -8,7 +8,7 @@ export class CameraManager {
     this.y = 0;
     this.xMax = 0;
     this.yMax = 0;
-    this.targetId = -1; // Changed from null to -1
+    this.target = null;
   }
 
   setMapBoundaries(cols, rows) {
@@ -16,31 +16,25 @@ export class CameraManager {
     this.yMax = rows * GameConfig.TILE_SIZE;
   }
 
-  // Set the ID of the character to follow (usually 0 for the Hero)
-  setTargetId(id) {
-    this.targetId = id;
+  setTarget(gameObject) {
+    this.target = gameObject;
   }
 
-  // Updated to receive the characterManager
-  update(system) {
-    if (this.targetId === -1 || this.targetId >= system.activeCount) return;
+  update() {
+    if (!this.target) return;
 
-    // Direct access to the CharacterManager's TypedArrays
-    const targetX = system.x[this.targetId];
-    const targetY = system.y[this.targetId];
+    const targetX = this.target.x;
+    const targetY = this.target.y;
 
-    // Center camera on target
     this.x = targetX - this.width / 2;
     this.y = targetY - this.height / 2;
 
-    // Bound the camera to the map limits
     this.x = Math.max(0, Math.min(this.x, this.xMax - this.width));
     this.y = Math.max(0, Math.min(this.y, this.yMax - this.height));
   }
 
   getVisibleGridBoundaries() {
     const TILE_SIZE = GameConfig.TILE_SIZE;
-    // We add +1 to the end indices to act as a buffer for smooth scrolling
     const startCol = Math.floor(this.x / TILE_SIZE);
     const endCol = startCol + Math.ceil(this.width / TILE_SIZE);
     const startRow = Math.floor(this.y / TILE_SIZE);
