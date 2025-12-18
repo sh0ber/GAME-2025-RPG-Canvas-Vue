@@ -27,16 +27,12 @@ export class CameraManager {
     const targetX = system.x[this.targetId];
     const targetY = system.y[this.targetId];
 
-    // Center and clamp
+    // Center and clamp using raw floats to keep movement fluid
     let nextX = targetX - this.width / 2;
     let nextY = targetY - this.height / 2;
     
-    nextX = Math.max(0, Math.min(nextX, this.xMax - this.width));
-    nextY = Math.max(0, Math.min(nextY, this.yMax - this.height));
-
-    // OPTIMIZATION: Rounding the camera prevent "Tile Jitter" when moving at sub-pixel speeds (common with deltaTime)
-    this.x = Math.round(nextX);
-    this.y = Math.round(nextY);
+    this.x = Math.max(0, Math.min(nextX, this.xMax - this.width));
+    this.y = Math.max(0, Math.min(nextY, this.yMax - this.height));
   }
 
   getVisibleGridBoundaries() {
