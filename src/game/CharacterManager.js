@@ -20,7 +20,9 @@ export class CharacterManager {
     this.factions = new Uint8Array(capacity);      // 1:Hero, 2:Monster, 4:NPC
     this.huntPolicies = new Uint8Array(capacity);  // Bitmask
     this.controllerType = new Uint8Array(capacity); // 1:Player, 2:AI
-    this.aggroRange = new Float32Array(capacity).fill(300);
+    this.aggroRange = new Float32Array(capacity).fill(320);
+    this.attackRange = new Float32Array(capacity).fill(30);
+    this.attackRangeSq = new Float32Array(capacity).fill(900); // Optimized for quick looping
     this.targetId = new Int32Array(capacity).fill(-1);
   }
 

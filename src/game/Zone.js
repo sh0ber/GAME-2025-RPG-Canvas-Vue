@@ -86,6 +86,28 @@ export class Zone {
   }
 
   /**
+   * Get a list of nearby entities within a specified radius
+   */
+  getNearby(id, sys, radius = 1) {
+    const col = (sys.x[id] / this.tileSize) | 0;
+    const row = (sys.y[id] / this.tileSize) | 0;
+    const neighbors = [];
+
+    for (let r = row - radius; r <= row + radius; r++) {
+      if (r < 0 || r >= this.rows) continue;
+      const rowOffset = r * this.cols;
+      for (let c = col - radius; c <= col + radius; c++) {
+        if (c < 0 || c >= this.cols) continue;
+        const cell = this.presenceGrid[rowOffset + c];
+        for (let i = 0; i < cell.length; i++) {
+          neighbors.push(cell[i]);
+        }
+      }
+    }
+    return neighbors;
+  }
+
+  /**
    * Collision check for an area (AABB).
    */
   isAreaWalkable(x, y, w, h) {
