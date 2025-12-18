@@ -31,7 +31,8 @@ class Engine {
       this.inputManager = new InputManager();
 
       // Pre-allocate memory buffers once for life of the application
-      this.characterManager = new CharacterManager(2000);
+      // Not done on the Zone intentionally for speediness and preventing GC
+      this.characterManager = new CharacterManager(2000); // 2000 max characters on screen, buffer created now
 
       // Initial map load
       await this.loadZone('test');
@@ -100,20 +101,20 @@ class Engine {
    * Core logic phase.
    */
   update(deltaTime) {
-    if (this.isPaused) return;
+    if (this.isPaused || !this.currentZone) return;
 
-    // 1. Resolve Intention: Set vx/vy for all IDs (Player & AI)
+    // 1. Sync Spatial: Prepare spatial grid for optimized lookups
+    this.currentZone.refreshSpatialGrid(this.characterManager);
+
+    // 2. Resolve Intention: Set vx/vy for all IDs (Player & AI)
     this.characterManager.updateControllers(
       this.inputManager, 
       this.currentZone, 
       this.frameCount
     );
 
-    // 2. Resolve Physics: Apply vx/vy to x/y with Zone collision
+    // 3. Resolve Physics: Apply vx/vy to x/y with Zone collision
     this.characterManager.updateMovement(deltaTime, this.currentZone);
-
-    // 3. Sync Spatial: Prepare grid for next frame's lookups
-    this.currentZone.refreshPresenceMap(this.characterManager);
 
     // 4. Post-Update: Camera follows character
     this.cameraManager.update(this.characterManager);
@@ -123,6 +124,7 @@ class Engine {
    * Core rendering phase.
    */
   draw() {
+    if (!this.currentZone) return;
     // Render static world tiles
     this.renderer.drawBackground(this.cameraManager, this.currentZone);
     // Render dynamic entities from the DoD system

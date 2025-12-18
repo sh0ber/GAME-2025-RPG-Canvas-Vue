@@ -16,7 +16,7 @@ export class Zone {
     this.npcs = [];
 
     // Optimized Spatial Grid
-    this.presenceGrid = [];
+    this.spatialGrid = [];
 
     this.aiManager = new AIManager();
 
@@ -37,7 +37,7 @@ export class Zone {
   }
 
   update(deltaTime) {
-    this.refreshPresenceMap(this.npcs);
+    this.refreshSpatialGrid(this.npcs);
     // Standard update for cooldowns/logic
     for (let i = 0; i < this.npcs.length; i++) {
       this.npcs[i].update(deltaTime, this);
@@ -63,15 +63,15 @@ export class Zone {
     entity.y = Math.max(0, Math.min(entity.y, maxY));
   }
 
-  refreshPresenceMap(npcs) {
+  refreshSpatialGrid(npcs) {
     const totalCells = this.rows * this.cols;
 
-    if (!this.presenceGrid || this.presenceGrid.length !== totalCells) {
-      this.presenceGrid = Array.from({ length: totalCells }, () => []);
+    if (!this.spatialGrid || this.spatialGrid.length !== totalCells) {
+      this.spatialGrid = Array.from({ length: totalCells }, () => []);
     }
 
     for (let i = 0; i < totalCells; i++) {
-      this.presenceGrid[i].length = 0;
+      this.spatialGrid[i].length = 0;
     }
 
     for (let i = 0; i < npcs.length; i++) {
@@ -80,7 +80,7 @@ export class Zone {
       const row = (obj.y / this.tileSize) | 0;
 
       if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
-        this.presenceGrid[row * this.cols + col].push(obj);
+        this.spatialGrid[row * this.cols + col].push(obj);
       }
     }
   }
@@ -96,7 +96,7 @@ export class Zone {
       for (let c = col - radius; c <= col + radius; c++) {
         if (c < 0 || c >= this.cols) continue;
 
-        const cell = this.presenceGrid[rowOffset + c];
+        const cell = this.spatialGrid[rowOffset + c];
         for (let i = 0; i < cell.length; i++) {
           neighbors.push(cell[i]);
         }

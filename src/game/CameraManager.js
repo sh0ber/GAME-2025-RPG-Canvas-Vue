@@ -21,21 +21,22 @@ export class CameraManager {
     this.targetId = id;
   }
 
-  // Updated to receive the characterManager
   update(system) {
     if (this.targetId === -1 || this.targetId >= system.activeCount) return;
 
-    // Direct access to the CharacterManager's TypedArrays
     const targetX = system.x[this.targetId];
     const targetY = system.y[this.targetId];
 
-    // Center camera on target
-    this.x = targetX - this.width / 2;
-    this.y = targetY - this.height / 2;
+    // Center and clamp
+    let nextX = targetX - this.width / 2;
+    let nextY = targetY - this.height / 2;
+    
+    nextX = Math.max(0, Math.min(nextX, this.xMax - this.width));
+    nextY = Math.max(0, Math.min(nextY, this.yMax - this.height));
 
-    // Bound the camera to the map limits
-    this.x = Math.max(0, Math.min(this.x, this.xMax - this.width));
-    this.y = Math.max(0, Math.min(this.y, this.yMax - this.height));
+    // OPTIMIZATION: Rounding the camera prevent "Tile Jitter" when moving at sub-pixel speeds (common with deltaTime)
+    this.x = Math.round(nextX);
+    this.y = Math.round(nextY);
   }
 
   getVisibleGridBoundaries() {

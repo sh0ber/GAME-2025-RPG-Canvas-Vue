@@ -1,7 +1,7 @@
 import { CONTROLLERS } from './controllers.js';
 
 export class CharacterManager {
-  constructor(capacity = 1000) {
+  constructor(capacity) {
     this.capacity = capacity;
     this.activeCount = 0;
 

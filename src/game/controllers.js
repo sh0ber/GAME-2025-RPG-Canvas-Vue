@@ -32,7 +32,7 @@ export const CONTROLLERS = {
   },
 
   [CONTROLLER_TYPES.AI]: (id, sys, { zone, frameCount }) => {
-    // 1. Every-frame Stop Check (Fast dSq check, no sqrt)
+    // 1. Every-frame Stop Check
     let tid = sys.targetId[id];
     if (tid !== -1 && sys.hp[tid] > 0) {
       const dx = sys.x[tid] - sys.x[id];
@@ -69,20 +69,24 @@ export const CONTROLLERS = {
     let finalFx = fx;
     let finalFy = fy;
 
-    // 3. Optimized Separation (Check dSq before committing to sqrt)
-    const neighbors = zone.getNearby(id, sys, 1);
-    const minDist = 28;
-    const minDistSq = 784;
+    // 3. Optimized Separation using the Shared Buffer
+    // This no longer creates an array; it returns a count.
+    const neighborCount = zone.getNearby(id, sys, 1);
+    
+    // Increased to 36/1296 to ensure they don't stack
+    const minDist = 36;
+    const minDistSq = 1296;
 
-    for (let i = 0; i < neighbors.length; i++) {
-      const nid = neighbors[i];
-      if (nid === id || sys.factions[nid] !== sys.factions[id]) continue;
+    for (let i = 0; i < neighborCount; i++) {
+      // Read the ID directly from the zone's pre-allocated buffer
+      const nid = zone.neighborBuffer[i];
+      
+      if (sys.factions[nid] !== sys.factions[id]) continue;
 
       const nx = sys.x[id] - sys.x[nid];
       const ny = sys.y[id] - sys.y[nid];
       const nDistSq = nx * nx + ny * ny;
 
-      // Only perform sqrt and normalization if the neighbor is within range
       if (nDistSq < minDistSq && nDistSq > 0) {
         const nD = Math.sqrt(nDistSq);
         const weight = (minDist - nD) / minDist;

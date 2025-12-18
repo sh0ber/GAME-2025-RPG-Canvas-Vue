@@ -7,28 +7,26 @@ export class Zone {
     this.name = name;
     this.mapData = data.mapData;
     this.rows = this.mapData.length;
-    // Fix: Safely calculate columns based on first row
     this.cols = this.rows > 0 ? this.mapData[0].length : 0;
     this.tileSize = GameConfig.TILE_SIZE || 32;
 
-    // Spatial Grid initialization
-    this.presenceGrid = Array.from({ length: this.rows * this.cols }, () => []);
+    this.spatialGrid = Array.from({ length: this.rows * this.cols }, () => []);
 
-    // Initial Spawning: Hero is always ID 0
-    // spawn(x, y, faction, huntPolicy, controllerType)
+    // 2025 OPTIMIZATION: Pre-allocate a shared buffer. 
+    // This stops the engine from creating thousands of empty arrays [] every second.
+    this.neighborBuffer = new Int32Array(system.capacity);
+    this.neighborCount = 0;
+
     system.spawn(100, 100, 1, 2, 1);
-
     if (data.enemies) {
       data.enemies.forEach(e => system.spawn(e.x, e.y, 2, 1, 2));
     }
   }
 
-  /**
-   * Clears and repopulates the spatial grid with current entity IDs.
-   */
-  refreshPresenceMap(sys) {
-    for (let i = 0; i < this.presenceGrid.length; i++) {
-      this.presenceGrid[i].length = 0;
+  refreshSpatialGrid(sys) {
+    // length = 0 is the fastest clear; it keeps the memory allocated for reuse.
+    for (let i = 0; i < this.spatialGrid.length; i++) {
+      this.spatialGrid[i].length = 0;
     }
 
     for (let id = 0; id < sys.activeCount; id++) {
@@ -36,44 +34,39 @@ export class Zone {
       const r = (sys.y[id] / this.tileSize) | 0;
 
       if (r >= 0 && r < this.rows && c >= 0 && c < this.cols) {
-        this.presenceGrid[r * this.cols + c].push(id);
+        this.spatialGrid[r * this.cols + c].push(id);
       }
     }
   }
 
-  /**
-   * Precise distance-based hostile search using the spatial grid.
-   */
   findNearestHostile(id, sys) {
     const px = sys.x[id];
     const py = sys.y[id];
     const range = sys.aggroRange[id];
-    const rangeSq = range * range; // PRE-CALCULATED SQUARED RANGE
+    const rangeSq = range * range;
 
     const col = (px / this.tileSize) | 0;
     const row = (py / this.tileSize) | 0;
     const cellRadius = Math.ceil(range / this.tileSize);
 
     let closestId = -1;
-    let minDistSq = rangeSq; // COMPARE SQUARED DISTANCES
+    let minDistSq = rangeSq;
 
     for (let r = row - cellRadius; r <= row + cellRadius; r++) {
       if (r < 0 || r >= this.rows) continue;
       const rowOffset = r * this.cols;
-
       for (let c = col - cellRadius; c <= col + cellRadius; c++) {
         if (c < 0 || c >= this.cols) continue;
 
-        const cell = this.presenceGrid[rowOffset + c];
+        const cell = this.spatialGrid[rowOffset + c];
         for (let i = 0; i < cell.length; i++) {
           const targetId = cell[i];
           if (targetId === id) continue;
-
           if (!(sys.huntPolicies[id] & sys.factions[targetId])) continue;
 
           const dx = sys.x[targetId] - px;
           const dy = sys.y[targetId] - py;
-          const dSq = dx * dx + dy * dy; // NO SQRT HERE
+          const dSq = dx * dx + dy * dy;
 
           if (dSq < minDistSq) {
             minDistSq = dSq;
@@ -86,30 +79,41 @@ export class Zone {
   }
 
   /**
-   * Get a list of nearby entities within a specified radius
+   * Optimized getNearby: Returns count and populates neighborBuffer.
+   * This version ensures neighbors are seen before they overlap.
    */
   getNearby(id, sys, radius = 1) {
     const col = (sys.x[id] / this.tileSize) | 0;
     const row = (sys.y[id] / this.tileSize) | 0;
-    const neighbors = [];
+    
+    this.neighborCount = 0;
 
     for (let r = row - radius; r <= row + radius; r++) {
       if (r < 0 || r >= this.rows) continue;
       const rowOffset = r * this.cols;
       for (let c = col - radius; c <= col + radius; c++) {
         if (c < 0 || c >= this.cols) continue;
-        const cell = this.presenceGrid[rowOffset + c];
+
+        const cell = this.spatialGrid[rowOffset + c];
         for (let i = 0; i < cell.length; i++) {
-          neighbors.push(cell[i]);
+          const nid = cell[i];
+          if (nid === id) continue;
+
+          this.neighborBuffer[this.neighborCount++] = nid;
+          // Safety break to prevent exceeding the buffer size
+          if (this.neighborCount >= this.neighborBuffer.length) return this.neighborCount;
         }
       }
     }
-    return neighbors;
+    return this.neighborCount;
   }
 
-  /**
-   * Collision check for an area (AABB).
-   */
+  isWalk(px, py) {
+    const c = (px / this.tileSize) | 0;
+    const r = (py / this.tileSize) | 0;
+    return r >= 0 && r < this.rows && c >= 0 && c < this.cols && this.mapData[r][c] !== 0;
+  }
+
   isAreaWalkable(x, y, w, h) {
     const inset = 4;
     return (
@@ -120,18 +124,6 @@ export class Zone {
     );
   }
 
-  /**
-   * Simple pixel-to-tile walkability check.
-   */
-  isWalk(px, py) {
-    const c = (px / this.tileSize) | 0;
-    const r = (py / this.tileSize) | 0;
-    return r >= 0 && r < this.rows && c >= 0 && c < this.cols && this.mapData[r][c] !== 0;
-  }
-
-  /**
-   * Prevents entities from leaving map boundaries.
-   */
   clamp(id, sys) {
     const maxX = (this.cols * this.tileSize) - sys.width[id];
     const maxY = (this.rows * this.tileSize) - sys.height[id];
