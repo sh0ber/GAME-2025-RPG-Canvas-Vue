@@ -1,0 +1,5 @@
+Reuse character objects instead of deleting to avoid garbage collection jitters
+- Swap the item with the final item
+- Pop it off
+Ensure checkCollision is only called if vx or vy are non-zero.
+Consider checking only the front-facing corners based on movement direction (e.g., if moving Up, only check the two top corners).

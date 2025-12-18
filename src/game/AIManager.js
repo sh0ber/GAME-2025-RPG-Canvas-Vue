@@ -10,15 +10,10 @@ export class AIManager {
 
     for (let i = 0; i < npcs.length; i++) {
       const npc = npcs[i];
-
-      // 1. DYNAMIC CHECK: Does this character have AI capabilities?
-      // We check if it has the steering method, allowing any class to opt-in.
+      
       if (typeof npc.calculateSteeringForce !== 'function') continue;
 
-      // 2. TARGET ACQUISITION
-      // If it doesn't have a target, or target is dead/gone
       if (!npc.target || npc.target.isEnabled === false) {
-        // Spatial Optimization: Only check within aggro range
         const cellRadius = Math.ceil(npc.aggroRange / zone.tileSize);
         const candidates = zone.getNearby(npc, cellRadius);
         npc.target = this.findNearestHostile(npc, candidates);
@@ -26,13 +21,11 @@ export class AIManager {
 
       if (!npc.target) continue;
 
-      // 3. TARGET PERSISTENCE (Optional Leashing)
+      // TARGET PERSISTENCE (Optional Leashing)
       // If your NPC has its own leashing logic in update(), it will handle clearing target.
 
-      // 4. MOVEMENT
+      // MOVEMENT
       const force = npc.calculateSteeringForce(zone);
-
-      // Pass normalized intent to Character.move
       npc.move(force.x, force.y, deltaTime, zone);
     }
   }
