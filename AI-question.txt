@@ -1,0 +1,246 @@
+I have an rpg engine with Character, Hero, and Enemy and with 1000 monsters on screen at once.  Hero could be charmed.  Player may crown a monster as the new hero. I'm realizing there might not be reason to distinguish between Hero and Enemy just yet for what I've done.
+
+CHARACTER:
+
+import { GameConfig } from '@/config/config.js';
+// TODO:  Character pooling!  When a character dies, put it in a pool to be reused later.
+
+const DIAGONAL_FACTOR = 0.70710678;
+
+export class Character {
+  constructor(x, y) {
+    // Spatial
+    this.x = x;
+    this.y = y;
+    this.xSpawn = x; // Remember spawn point for respawns / leash
+    this.ySpawn = y; // Remember spawn point for respawns / leash
+    this.width = GameConfig.TILE_SIZE;
+    this.height = GameConfig.TILE_SIZE;
+
+    // Stats
+    this.speed = 100;
+    this.atkSpd = 1.0;
+    this.attackRange = 30; // Eventually weapon based
+
+    // Personality
+    this.faction = 'neutral';
+
+    // Gameplay
+    this.effects = [];
+    this.target = null;
+
+    // AI
+    this.isAIControlled = false;
+
+    // Lifecycle
+    this.isEnabled = true; // Technical state: Is this object currently in the AI/Physics loops?
+    this.isAlive = true; // Gameplay state: Is this character still a participant in combat?
+  }
+
+  get centerX() { return this.x + this.width / 2; }
+  get centerY() { return this.y + this.height / 2; }
+  get bottomY() { return this.y + this.height; }
+
+  // == Gameplay
+  update(deltaTime, zone) {
+    // Update effects
+    this.effects = this.effects.filter(effect => {
+      effect.onTick(this, deltaTime);
+      if (effect.duration <= 0) { effect.onRemove(this); return false; }
+      return true;
+    });
+  }
+
+  // == Spatial
+  move(dirX, dirY, deltaTime, zone) {
+    const vx = dirX * this.speed * deltaTime;
+    const vy = dirY * this.speed * deltaTime;
+
+    if (!zone.checkCollision(this, this.x + vx, this.y)) this.x += vx;
+    if (!zone.checkCollision(this, this.x, this.y + vy)) this.y += vy;
+    
+    zone.clamp(this);
+  }
+}
+
+HERO:
+
+import { Character } from '@/game/Character.js';
+import { GameConfig } from '@/config/config.js';
+
+export class Hero extends Character {
+  /**
+   * @param {number} x - Starting world X coordinate.
+   * @param {number} y - Starting world Y coordinate.
+   * @param {InputManager} inputManager - The engine's input system instance (Dependency Injection).
+   */
+  constructor(x, y, inputManager) {
+    super(x, y);
+    this.speed = 250;
+    this.tileType = 2;
+
+    this.faction = 'hero';
+
+    this.input = inputManager;
+  }
+
+  update(deltaTime, zone) {
+    super.update(deltaTime, zone);
+
+    let dirX = 0;
+    let dirY = 0;
+
+    if (this.input.isKeyDown('ArrowUp') || this.input.isKeyDown('w')) dirY -= 1;
+    if (this.input.isKeyDown('ArrowDown') || this.input.isKeyDown('s')) dirY += 1;
+    if (this.input.isKeyDown('ArrowLeft') || this.input.isKeyDown('a')) dirX -= 1;
+    if (this.input.isKeyDown('ArrowRight') || this.input.isKeyDown('d')) dirX += 1;
+
+    if (dirX !== 0 || dirY !== 0) {
+      this.move(dirX, dirY, deltaTime, zone);
+    }
+  }
+}
+
+ENEMY:
+
+import { Character } from '@/game/Character.js';
+
+// Reusable fast distance approximation
+const fastDist = (dx, dy) => {
+  const adx = dx < 0 ? -dx : dx;
+  const ady = dy < 0 ? -dy : dy;
+  return adx > ady ? (0.96 * adx + 0.4 * ady) : (0.96 * ady + 0.4 * adx);
+};
+
+export class Enemy extends Character {
+  constructor(x, y) {
+    super(x, y);
+    this.isAIControlled = true;
+    this.speed = 150;
+    this.faction = 'monster';
+    this.huntPolicy = ['hero'];
+    this.tileType = 3;
+
+    this.aggroRange = 300;
+    this.leashMultiplier = 1.25;
+    this.minDist = 28;
+    this.attackRange = 30;
+  }
+
+  update(deltaTime, zone) {
+    super.update(deltaTime, zone);
+
+    if (this.target) {
+      const dx = this.x - this.target.x;
+      const dy = this.y - this.target.y;
+      const leashRangeSq = (this.aggroRange * this.leashMultiplier) ** 2;
+
+      // Drop target if out of leash range or dead
+      if ((dx * dx + dy * dy) > leashRangeSq || this.target.active === false) {
+        this.target = null;
+      }
+    }
+  }
+
+  // This is intentionally not in the AI manager to allow for easier customization per enemy type
+  // But really you should move the different force strategies into another class
+  // and have each enemy type reference that class instead of overriding this method
+  calculateSteeringForce(zone) {
+    if (!this.target) return { x: 0, y: 0 };
+
+    const dx = this.target.x - this.x;
+    const dy = this.target.y - this.y;
+    const distSq = dx * dx + dy * dy;
+
+    // 1. Attack Range Check
+    if (distSq <= (this.attackRange * this.attackRange)) return { x: 0, y: 0 };
+
+    // 2. Initial Seek Force
+    const d = fastDist(dx, dy);
+    let fx = dx / d;
+    let fy = dy / d;
+
+    // 3. Separation (Neighbor logic moved from Manager to here)
+    const neighbors = zone.getNearby(this, 1);
+    for (let n = 0; n < neighbors.length; n++) {
+      const neighbor = neighbors[n];
+      if (neighbor === this || neighbor.faction !== this.faction) continue;
+
+      const nx = this.x - neighbor.x;
+      const ny = this.y - neighbor.y;
+      const nDistSq = nx * nx + ny * ny;
+
+      if (nDistSq < (this.minDist * this.minDist) && nDistSq > 0) {
+        const nD = fastDist(nx, ny);
+        const weight = (this.minDist - nD) / this.minDist;
+        fx += (nx / nD) * weight;
+        fy += (ny / nD) * weight;
+      }
+    }
+
+    // Normalize final vector
+    const totalMag = fastDist(fx, fy);
+    return totalMag > 0.01 ? { x: fx / totalMag, y: fy / totalMag } : { x: 0, y: 0 };
+  }
+}
+
+AI MANAGER:
+
+import { Enemy } from '@/game/Enemy.js';
+
+export class AIManager {
+  constructor() {
+    this.moveThresholdSq = 0.0025;
+  }
+
+  processAI(deltaTime, zone) {
+    const npcs = zone.npcs;
+
+    for (let i = 0; i < npcs.length; i++) {
+      const npc = npcs[i];
+      
+      if (typeof npc.calculateSteeringForce !== 'function') continue;
+
+      if (!npc.target || npc.target.isEnabled === false) {
+        const cellRadius = Math.ceil(npc.aggroRange / zone.tileSize);
+        const candidates = zone.getNearby(npc, cellRadius);
+        npc.target = this.findNearestHostile(npc, candidates);
+      }
+
+      if (!npc.target) continue;
+
+      // TARGET PERSISTENCE (Optional Leashing)
+      // If your NPC has its own leashing logic in update(), it will handle clearing target.
+
+      // MOVEMENT
+      const force = npc.calculateSteeringForce(zone);
+      npc.move(force.x, force.y, deltaTime, zone);
+    }
+  }
+
+  findNearestHostile(npc, candidates) {
+    const policy = npc.huntPolicy;
+    if (policy.length === 0) return null;
+
+    let currentMinDistSq = npc.aggroRange * npc.aggroRange;
+    let closest = null;
+
+    for (let i = 0; i < candidates.length; i++) {
+      const target = candidates[i];
+
+      // Skip self, inactive targets, or targets not in hunt policy
+      if (target === npc || !target.isEnabled || !target.isAlive) continue;
+      if (!policy.includes(target.faction)) continue;
+
+      const dx = target.x - npc.x;
+      const dy = target.y - npc.y;
+      const dSq = dx * dx + dy * dy;
+
+      if (dSq < currentMinDistSq) {
+        currentMinDistSq = dSq;
+        closest = target;
+      }
+    }
+    return closest;
+  }
+}

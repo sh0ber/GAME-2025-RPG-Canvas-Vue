@@ -2,7 +2,7 @@ import { Renderer } from '@/game/Renderer.js';
 import { Zone } from '@/game/Zone.js';
 import { CameraManager } from '@/game/CameraManager.js';
 import { InputManager } from '@/game/InputManager.js';
-import { Player } from '@/game/Player.js';
+import { Hero } from '@/game/Hero.js';
 
 // Singleton
 class Engine {
@@ -17,7 +17,7 @@ class Engine {
     this.inputManager = null;
 
     this.currentZone = null;
-    this.player = null;
+    this.hero = null;
   }
 
   async initialize() {
@@ -25,7 +25,7 @@ class Engine {
       this.renderer = new Renderer();
       this.cameraManager = new CameraManager();
       this.inputManager = new InputManager();
-      this.player = new Player(0, 0, this.inputManager);
+      this.hero = new Hero(0, 0, this.inputManager);
 
       await this.loadZone('test');
 
@@ -74,10 +74,10 @@ class Engine {
 
   async loadZone(zoneName) {
     const zone = new Zone(zoneName);
-    zone.spawnEntity(this.player);
+    zone.spawnEntity(this.hero);
     this.currentZone = zone;
     this.cameraManager.setMapBoundaries(zone.cols, zone.rows);
-    this.cameraManager.setTarget(this.player);
+    this.cameraManager.setTarget(this.hero);
   }
 
   update(deltaTime) {

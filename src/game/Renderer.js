@@ -3,7 +3,7 @@ import { GameConfig } from '@/config/config.js';
 const TILE_COLORS = {
   0: '#666666', // Wall
   1: '#086741', // Floor
-  2: '#FFFF00', // Player
+  2: '#FFFF00', // Hero
   3: '#FF0000', // Enemy
   4: '#000099', // NPC
 };

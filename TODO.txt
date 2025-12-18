@@ -3,3 +3,92 @@ Reuse character objects instead of deleting to avoid garbage collection jitters
 - Pop it off
 Ensure checkCollision is only called if vx or vy are non-zero.
 Consider checking only the front-facing corners based on movement direction (e.g., if moving Up, only check the two top corners).
+
+Q. Monster control ("AI"):
+-------------
+If Monster already has target, check:
+- Should they move?
+- Should they leash?
+- Should they attack?
+If Monster doesn't have target, check:
+- Are there targets in my aggro range that I am hostile towards?
+- Am I being attacked?  (Should this rather be a direct reaction rather than in a loop?)
+
+Questions:
+1. Which of these things should go in an AI processor that loops through all monsters in zone / on screen?
+2. For realism, you might want even off screen monsters doing stuff, what optimizations might there be for this?
+
+ANSWER:
+--------------------------
+To handle 1,000s of monsters effectively, you should move away from the traditional Object-Oriented Programming (OOP) "calling a method on each monster" approach and adopt a
+Data-Oriented Design (DOD) or Entity Component System (ECS) model.
+
+1. Loop Responsibility: Calculation vs. Method Call
+For high-performance AI, calculations should stay inside the loop (or a specialized "system"), not hidden inside a monster's object method. 
+
+    Avoid "Method Calls" (The "Black Box" Problem): In standard OOP, calling monster.Update() on 1,000 objects forces the CPU to jump to a different memory address for every monster, causing "cache misses" that severely degrade performance.
+    The "System" Approach: Create a specialized AggroSystem loop that processes only raw data (arrays of positions and target IDs). This allows the CPU to stream data from memory linearly, which is orders of magnitude faster.
+    Division of Responsibilities:
+        The Monster (Data): Just a bag of variables (Position, CurrentTargetID, AggroRange, IsLeashing).
+        The System (Logic): A high-speed loop that reads the data, performs the math, and updates the variables. 
+
+2. Strategic Division of AI Tasks
+Distribute monster logic based on how "heavy" the calculation is:
+
+Task              Where it belongs        Frequency
+Aggro Checks      Global Aggro System     Low (every 10–30 frames)
+Leashing          Boundary System         Medium (every 5–10 frames)
+Movement/Pathing	Movement System         High (every frame for smooth visuals)
+Attack Execution	Combat System           On-demand (staggered ticks)
+
+3. Key Optimizations for "Smart" Scaling
+
+    Spatial Partitioning: Don't let monsters loop through every possible target. Use a Grid or Quadtree so the Aggro System only checks entities within the same "bucket".
+    Throttled Decision Making: Humans and monsters don't rethink their life goals every 1/60th of a second. Update target selection on a "staggered" basis—e.g., process 100 monsters per frame so it takes 10 frames to cycle through all 1,000.
+    Event-Driven Aggro: For "Am I being attacked?", do not use a loop. Use a direct callback. When a projectile hits a monster, the projectile code should immediately call monster.SetAggro(attacker). This is "free" because the calculation only happens when an actual event occurs.
+    Parallelization: Because systems (like Aggro or Movement) operate on simple arrays of data, they are very easy to multi-thread. In 2025, using systems like Unity's Burst Compiler or C# Jobs can run these calculations across all CPU cores simultaneously. 
+
+
+REGARDING CLICKING
+--------------------------
+In a Data-Oriented Design (DOD) system with thousands of entities on a canvas, you cannot rely on traditional DOM events like element.onclick.
+Instead, you use a Spatial Query against your existing data structures.
+
+1. Transform Click Coordinates
+First, convert the raw mouse click (clientX, clientY) into your world-space coordinates.  This accounts for any camera zoom or scrolling
+
+const rect = canvas.getBoundingClientRect();
+const worldX = (event.clientX - rect.left) + cameraX;
+const worldY = (event.clientY - rect.top) + cameraY;
+
+2. Broad Phase: Spatial Hash Lookup
+Rather than looping through all 1,000+ monsters, query your Spatial Hash Grid for entities in the specific cell where the click occurred.
+
+Calculate the cell index:
+
+cellX = Math.floor(worldX / cellSize)
+
+Retrieve only the small list of monster IDs in that specific cell.
+
+3. Narrow Phase: Box Intersection
+Iterate through only those few IDs returned by the grid and check if the click point lies inside their bounding box.
+
+function getClickedMonster(worldX, worldY) {
+  const candidateIds = spatialHash.getAt(worldX, worldY); // Broad Phase
+  
+  for (const id of candidateIds) {
+    // Access raw array data (DOD approach)
+    const x = MonsterData.x[id];
+    const y = MonsterData.y[id];
+    const w = MonsterData.width[id];
+    const h = MonsterData.height[id];
+
+    // Point-in-Rectangle check (Narrow Phase)
+    if (worldX >= x && worldX <= x + w && 
+        worldY >= y && worldY <= y + h) {
+      return id; // Found our clicked monster
+    }
+  }
+  return -1;
+}
+Use code with caution.4. Handling Overlaps (Z-Order)If multiple monsters are stacked, the code above returns the first one it finds. To ensure you click the "top" monster, you can:Loop through candidates in reverse order (assuming higher indices are drawn last).Store a depth or z-index in a separate array and return the entity with the highest value.Performance NoteFor 1,000+ entities, this method is nearly instantaneous because it reduces the search from \(O(N)\) (all monsters) to \(O(1)\) (one grid cell). Avoid pixel-based detection methods like getImageData(), as they are significantly slower than mathematical bounding-box checks in a high-performance environment.These articles describe how to transform click coordinates into world-space, utilize a spatial hash grid for broad-phase collision detection, and perform narrow-phase bounding box checks to identify clicked monsters.

@@ -13,7 +13,7 @@ export class CharmEffect extends StatusEffect {
   
   onApply(npc) {
     npc.originalFaction = npc.faction;
-    npc.faction = 'player'; // Temporary faction swap
+    npc.faction = 'hero'; // Temporary faction swap
     npc.target = null;      // Reset target to re-evaluate
   }
 

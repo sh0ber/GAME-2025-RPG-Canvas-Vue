@@ -1,7 +1,7 @@
 import { Character } from '@/game/Character.js';
 import { GameConfig } from '@/config/config.js';
 
-export class Player extends Character {
+export class Hero extends Character {
   /**
    * @param {number} x - Starting world X coordinate.
    * @param {number} y - Starting world Y coordinate.
@@ -12,7 +12,7 @@ export class Player extends Character {
     this.speed = 250;
     this.tileType = 2;
 
-    this.faction = 'player';
+    this.faction = 'hero';
 
     this.input = inputManager;
   }

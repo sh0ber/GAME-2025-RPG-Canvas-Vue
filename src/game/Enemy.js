@@ -13,7 +13,7 @@ export class Enemy extends Character {
     this.isAIControlled = true;
     this.speed = 150;
     this.faction = 'monster';
-    this.huntPolicy = ['player'];
+    this.huntPolicy = ['hero'];
     this.tileType = 3;
 
     this.aggroRange = 300;
