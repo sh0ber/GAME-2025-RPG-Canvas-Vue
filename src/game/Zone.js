@@ -1,23 +1,18 @@
 import { ZoneConfig } from '@/config/zones.js';
 import { GameConfig } from '@/config/config.js';
+import { flattenMapData } from '@/utils/maps.js';
 
 export class Zone {
   constructor(name, characterManager) {
-    const data = ZoneConfig[name]; // data.mapData is still a 2D array here
+    const data = ZoneConfig[name]; // Map is 2D here
+    const { mapData, rows, cols } = flattenMapData(data.mapData);
+    this.mapData = mapData; // Map is 1D stored
     this.name = name;
-    this.rows = data.mapData.length;
-    this.cols = this.rows > 0 ? data.mapData[0].length : 0;
+    this.rows = rows;
+    this.cols = cols;
     this.tileSize = GameConfig.TILE_SIZE || 32;
 
-    // 1. Flatten the 2D map into a 1D Typed Array
-    this.mapData = new Uint8Array(this.rows * this.cols);
-    for (let r = 0; r < this.rows; r++) {
-      for (let c = 0; c < this.cols; c++) {
-        // formula: row * width + col
-        this.mapData[r * this.cols + c] = data.mapData[r][c];
-      }
-    }
-
+    // Spatial Grid
     this.spatialGrid = Array.from({ length: this.rows * this.cols }, () => []);
     this.neighborBuffer = new Int32Array(characterManager.capacity);
     this.neighborCount = 0;

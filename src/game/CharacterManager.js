@@ -13,6 +13,12 @@ export class CharacterManager {
     this.width = new Uint16Array(capacity).fill(32);
     this.height = new Uint16Array(capacity).fill(32);
 
+    // PATHING
+    this.pathIndex = new Int32Array(capacity).fill(0);    // Current waypoint index in the path
+    this.pathLength = new Int32Array(capacity).fill(0);   // Total waypoints in current path
+    this.paths = Array.from({ length: capacity }, () => new Int32Array(256)); // Pre-allocated waypoint buffers
+    this.isMovingToTarget = new Uint8Array(capacity);     // 1 if following path, 0 if idle
+
     // STATS
     this.hp = new Float32Array(capacity);
 

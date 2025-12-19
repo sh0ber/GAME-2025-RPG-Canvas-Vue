@@ -1,9 +1,12 @@
-export function flatten2D() {
-  const mapData = new Uint8Array(this.rows * this.cols);
-  for (let r = 0; r < this.rows; r++) {
-    for (let c = 0; c < this.cols; c++) {
-      // formula: row * width + col
-      this.mapData[r * this.cols + c] = data.mapData[r][c];
+export const flattenMapData = (map2D) => {
+  const rows = map2D.length;
+  const cols = rows > 0 ? map2D[0].length : 0;
+  const mapData = new Uint8Array(rows * cols);
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      mapData[r * cols + c] = map2D[r][c];
     }
   }
-}
+  return { mapData, rows, cols };
+};
