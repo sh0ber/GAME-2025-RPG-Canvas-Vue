@@ -130,7 +130,7 @@ export class Zone {
     return this.mapData[r * this.cols + c] !== 0;
   }
 
-  canMove(x, y, w, h, vx, vy) {
+  checkTileCollision(x, y, w, h, vx, vy) {
     const inset = 4;
 
     if (vx !== 0) {

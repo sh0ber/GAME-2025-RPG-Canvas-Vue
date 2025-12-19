@@ -74,7 +74,7 @@ export class CharacterManager {
       // Try moving X
       if (vx !== 0) {
         const nextX = px + vx * dt;
-        if (zone.canMove(nextX, py, w, h, vx, 0)) {
+        if (zone.checkTileCollision(nextX, py, w, h, vx, 0)) {
           px = nextX;
           this.x[i] = px;
         }
@@ -83,7 +83,7 @@ export class CharacterManager {
       // Try moving Y (using the potentially updated px)
       if (vy !== 0) {
         const nextY = py + vy * dt;
-        if (zone.canMove(px, nextY, w, h, 0, vy)) {
+        if (zone.checkTileCollision(px, nextY, w, h, 0, vy)) {
           py = nextY;
           this.y[i] = py;
         }
