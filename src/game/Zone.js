@@ -92,7 +92,7 @@ export class Zone {
     const row = (sys.y[id] / tileSize) | 0;
     
     let count = 0;
-    const MAX_NEIGHBORS = 10; 
+    const MAX_NEIGHBORS = 32; 
 
     for (let r = row - radius; r <= row + radius; r++) {
       if (r < 0 || r >= rows) continue;
