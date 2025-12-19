@@ -12,7 +12,7 @@ export class Zone {
     this.cols = cols;
     this.tileSize = GameConfig.TILE_SIZE || 32;
 
-    // Spatial Grid
+    // Spatial Grid (for finding nearest hostiles and for crowd behavior)
     this.spatialGrid = Array.from({ length: this.rows * this.cols }, () => []);
     this.neighborBuffer = new Int32Array(characterManager.capacity);
     this.neighborCount = 0;
