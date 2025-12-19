@@ -88,7 +88,7 @@ class Engine {
   draw() {
     this.currentZone.npcs.sort((a, b) => a.bottomY - b.bottomY);
     this.renderer.drawBackground(this.cameraManager, this.currentZone);
-    this.renderer.drawGameplay(this.cameraManager, this.currentZone.npcs);
+    this.renderer.drawCharacters(this.cameraManager, this.currentZone.npcs);
   }
 }
 

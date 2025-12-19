@@ -64,7 +64,7 @@ export class Renderer {
     }
   }
 
-  drawGameplay(cameraManager, system) {
+  drawCharacters(cameraManager, system) {
     const ctx = this.ctxGp;
     ctx.clearRect(0, 0, cameraManager.width, cameraManager.height);
 

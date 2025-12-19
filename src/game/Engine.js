@@ -139,7 +139,7 @@ class Engine {
     // Render static world tiles
     this.renderer.drawBackground(this.cameraManager, this.currentZone);
     // Render dynamic entities from the DoD system
-    this.renderer.drawGameplay(this.cameraManager, this.characterManager);
+    this.renderer.drawCharacters(this.cameraManager, this.characterManager);
 
     this.drawDebugInfo();
   }
