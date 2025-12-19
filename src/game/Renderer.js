@@ -20,20 +20,22 @@ export class Renderer {
 
     this.bgCanvas = this.createAndAppendCanvas('background-canvas', 0);
     this.gameplayCanvas = this.createAndAppendCanvas('gameplay-canvas', 1);
+    this.fpsCanvas = this.createAndAppendCanvas('fps-canvas', 1, 80, 28);
 
     this.ctxBg = this.bgCanvas.getContext('2d');
     this.ctxGp = this.gameplayCanvas.getContext('2d');
+    this.ctxFps = this.fpsCanvas.getContext('2d');
 
     this.imgBackground = null;
     this.imgGameplay = null;
   }
 
-  createAndAppendCanvas(id, zIndex = 0) {
+  createAndAppendCanvas(id, zIndex = 0, w = GameConfig.CANVAS_WIDTH, h = GameConfig.CANVAS_HEIGHT) {
     const canvas = document.createElement('canvas');
     canvas.id = id;
     canvas.className = 'game-canvas';
-    canvas.width = GameConfig.CANVAS_WIDTH;
-    canvas.height = GameConfig.CANVAS_HEIGHT;
+    canvas.width = w;
+    canvas.height = h;
     canvas.style.zIndex = zIndex;
     this.container.appendChild(canvas);
     return canvas;
@@ -95,5 +97,20 @@ export class Renderer {
         renderTile(ctx, tileType, screenX, screenY);
       }
     }
+  }
+
+  drawDebugInfo(fps) {
+    const ctx = this.ctxFps;
+    ctx.clearRect(0, 0, this.fpsCanvas.width, this.fpsCanvas.height);
+    ctx.fillStyle = 'white';
+    ctx.font = '16px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+
+    // Use a slight shadow or background box for readability against game tiles
+    ctx.shadowColor = 'black';
+    ctx.shadowBlur = 4;
+    ctx.fillText(`FPS: ${fps}`, 5, 5);
+    ctx.shadowBlur = 0; // Reset for performance
   }
 }

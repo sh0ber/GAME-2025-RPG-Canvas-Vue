@@ -126,21 +126,7 @@ class Engine {
     // Render dynamic entities from the DoD system
     this.renderer.drawCharacters(this.cameraManager, this.characterManager);
 
-    this.drawDebugInfo();
-  }
-
-  drawDebugInfo() {
-    const ctx = this.renderer.ctxGp;
-    ctx.fillStyle = 'white';
-    ctx.font = '16px monospace';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-
-    // Use a slight shadow or background box for readability against game tiles
-    ctx.shadowColor = 'black';
-    ctx.shadowBlur = 4;
-    ctx.fillText(`FPS: ${this.fps}`, 10, 10);
-    ctx.shadowBlur = 0; // Reset for performance
+    this.renderer.drawDebugInfo(this.fps);
   }
 }
 

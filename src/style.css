@@ -43,8 +43,15 @@ body {
 }
 
 .game-canvas {
-  image-rendering: pixelated;
   position: absolute;
   top: 0;
   left: 0;
+}
+
+#background-canvas, #gameplay-canvas {
+  image-rendering: pixelated;
+}
+
+#fps-canvas {
+  border: 1px dashed red;
 }
