@@ -1,3 +1,4 @@
+import { GameConfig } from '@/config/config.js';
 import { Renderer } from '@/game/Renderer.js';
 import { Zone } from '@/game/Zone.js';
 import { CameraManager } from '@/game/CameraManager.js';
@@ -12,6 +13,9 @@ class Engine {
     this.timeScale = 1.0;
     this.frameId = null;
     this.frameCount = 0; // Incremented per frame for staggered AI/ticks
+    // Just for readout
+    this.fps = 0;
+    this.lastFpsUpdate = 0;
 
     // Core managers
     this.renderer = null;
@@ -32,7 +36,7 @@ class Engine {
 
       // Pre-allocate memory buffers once for life of the application
       // Not done on the Zone intentionally for speediness and preventing GC
-      this.characterManager = new CharacterManager(2000); // 2000 max characters on screen, buffer created now
+      this.characterManager = new CharacterManager(10001); // Max characters on screen, buffer created now. Includes hero.
 
       // Initial map load
       await this.loadZone('test');
@@ -94,7 +98,7 @@ class Engine {
     this.currentZone = new Zone(zoneName, this.characterManager);
 
     this.cameraManager.setMapBoundaries(this.currentZone.cols, this.currentZone.rows);
-    this.cameraManager.setTargetId(0); // Hero is conventionally ID 0
+    this.cameraManager.setTargetId(GameConfig.HERO_CHARACTER_ID); // Hero is conventionally ID 0
   }
 
   /**
@@ -103,13 +107,20 @@ class Engine {
   update(deltaTime) {
     if (this.isPaused || !this.currentZone) return;
 
+    // Calculate rolling FPS every 500ms
+    const now = performance.now();
+    if (now - this.lastFpsUpdate > 500) {
+      this.fps = Math.round(1 / deltaTime);
+      this.lastFpsUpdate = now;
+    }
+
     // 1. Sync Spatial: Prepare spatial grid for optimized lookups
     this.currentZone.refreshSpatialGrid(this.characterManager);
 
     // 2. Resolve Intention: Set vx/vy for all IDs (Player & AI)
     this.characterManager.updateControllers(
-      this.inputManager, 
-      this.currentZone, 
+      this.inputManager,
+      this.currentZone,
       this.frameCount
     );
 
@@ -129,6 +140,22 @@ class Engine {
     this.renderer.drawBackground(this.cameraManager, this.currentZone);
     // Render dynamic entities from the DoD system
     this.renderer.drawGameplay(this.cameraManager, this.characterManager);
+
+    this.drawDebugInfo();
+  }
+
+  drawDebugInfo() {
+    const ctx = this.renderer.ctxGp;
+    ctx.fillStyle = 'white';
+    ctx.font = '16px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+
+    // Use a slight shadow or background box for readability against game tiles
+    ctx.shadowColor = 'black';
+    ctx.shadowBlur = 4;
+    ctx.fillText(`FPS: ${this.fps}`, 10, 10);
+    ctx.shadowBlur = 0; // Reset for performance
   }
 }
 

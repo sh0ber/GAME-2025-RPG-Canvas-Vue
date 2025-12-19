@@ -2,7 +2,7 @@ import { ZoneConfig } from '@/config/zones.js';
 import { GameConfig } from '@/config/config.js';
 
 export class Zone {
-  constructor(name, system) {
+  constructor(name, characterManager) {
     const data = ZoneConfig[name];
     this.name = name;
     this.mapData = data.mapData;
@@ -12,14 +12,14 @@ export class Zone {
 
     this.spatialGrid = Array.from({ length: this.rows * this.cols }, () => []);
 
-    // 2025 OPTIMIZATION: Pre-allocate a shared buffer. 
-    // This stops the engine from creating thousands of empty arrays [] every second.
-    this.neighborBuffer = new Int32Array(system.capacity);
+    // OPTIMIZATION: Pre-allocate a shared buffer. This prevents the engine from creating thousands of empty arrays [] every second.
+    this.neighborBuffer = new Int32Array(characterManager.capacity);
     this.neighborCount = 0;
 
-    system.spawn(100, 100, 1, 2, 1);
+    // Spawns
+    characterManager.spawn(100, 100, 1, 2, 1); // Hero must always be the first spawned entity
     if (data.enemies) {
-      data.enemies.forEach(e => system.spawn(e.x, e.y, 2, 1, 2));
+      data.enemies.forEach(e => characterManager.spawn(e.x, e.y, 2, 1, 2));
     }
   }
 
@@ -85,12 +85,14 @@ export class Zone {
   getNearby(id, sys, radius = 1) {
     const col = (sys.x[id] / this.tileSize) | 0;
     const row = (sys.y[id] / this.tileSize) | 0;
-    
     this.neighborCount = 0;
+    
+    const MAX_NEIGHBORS = 10; // 16 is plenty for a "nudge" force
 
     for (let r = row - radius; r <= row + radius; r++) {
       if (r < 0 || r >= this.rows) continue;
       const rowOffset = r * this.cols;
+
       for (let c = col - radius; c <= col + radius; c++) {
         if (c < 0 || c >= this.cols) continue;
 
@@ -100,8 +102,11 @@ export class Zone {
           if (nid === id) continue;
 
           this.neighborBuffer[this.neighborCount++] = nid;
-          // Safety break to prevent exceeding the buffer size
-          if (this.neighborCount >= this.neighborBuffer.length) return this.neighborCount;
+
+          // EXIT EARLY: If we've found enough neighbors to calculate a nudge, 
+          // stop searching this cell/area to save CPU cycles.
+          if (this.neighborCount >= MAX_NEIGHBORS) return MAX_NEIGHBORS;
+          // if (this.neighborCount >= this.neighborBuffer.length) return this.neighborCount;
         }
       }
     }
