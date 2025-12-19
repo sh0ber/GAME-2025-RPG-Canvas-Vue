@@ -13,7 +13,8 @@ class Engine {
     this.timeScale = 1.0;
     this.frameId = null;
     this.frameCount = 0; // Incremented per frame for staggered AI/ticks
-    // Just for readout
+
+    // FPS readout only
     this.fps = 0;
     this.lastFpsUpdate = 0;
 
@@ -33,10 +34,7 @@ class Engine {
       this.renderer = new Renderer();
       this.cameraManager = new CameraManager();
       this.inputManager = new InputManager();
-
-      // Pre-allocate memory buffers once for life of the application
-      // Not done on the Zone intentionally for speediness and preventing GC
-      this.characterManager = new CharacterManager(1000); // Max characters on screen, buffer created now. Includes hero.
+      this.characterManager = new CharacterManager(1000); // Includes hero + 999 slots
 
       // Initial map load
       await this.loadZone('test');
@@ -49,9 +47,6 @@ class Engine {
     }
   }
 
-  /**
-   * Starts the requestAnimationFrame loop.
-   */
   start() {
     let lastTime = performance.now();
 
@@ -73,9 +68,6 @@ class Engine {
     this.frameId = requestAnimationFrame(loop);
   }
 
-  /**
-   * Hard stop for the engine loop.
-   */
   stop() {
     this.isStopped = true;
     if (this.frameId) {
@@ -87,18 +79,11 @@ class Engine {
   pause() { this.isPaused = true; }
   resume() { this.isPaused = false; }
 
-  /**
-   * Resets character data (not memory) and loads new zone environment.
-   */
   async loadZone(zoneName) {
-    // Keep memory buffers but reset the activeCount to 0
     this.characterManager.reset();
-
-    // Zone populates characterManager with new entity data
     this.currentZone = new Zone(zoneName, this.characterManager);
-
     this.cameraManager.setMapBoundaries(this.currentZone.cols, this.currentZone.rows);
-    this.cameraManager.setTargetId(GameConfig.HERO_CHARACTER_ID); // Hero is conventionally ID 0
+    this.cameraManager.setTargetId(GameConfig.HERO_CHARACTER_ID); // Follow hero
   }
 
   /**

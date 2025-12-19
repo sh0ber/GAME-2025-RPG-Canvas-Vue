@@ -1,5 +1,6 @@
 import { CONTROLLERS } from './controllers.js';
 
+// Pre-allocate memory buffers once in the constructor for life of the application
 export class CharacterManager {
   constructor(capacity) {
     this.capacity = capacity;
