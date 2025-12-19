@@ -36,7 +36,7 @@ class Engine {
 
       // Pre-allocate memory buffers once for life of the application
       // Not done on the Zone intentionally for speediness and preventing GC
-      this.characterManager = new CharacterManager(2000); // Max characters on screen, buffer created now. Includes hero.
+      this.characterManager = new CharacterManager(5001); // Max characters on screen, buffer created now. Includes hero.
 
       // Initial map load
       await this.loadZone('test');

@@ -29,47 +29,43 @@ export const CONTROLLERS = {
   },
 
   [CONTROLLER_TYPES.AI]: (id, sys, { zone, frameCount }) => {
-    // 1. INSTANT STOP (Run every frame to prevent orbiting/overshoot)
+    // 1. INSTANT ATTACK STOP
     let tid = sys.targetId[id];
     if (tid !== -1 && sys.hp[tid] > 0) {
       const dx = sys.x[tid] - sys.x[id];
       const dy = sys.y[tid] - sys.y[id];
       const dSq = dx * dx + dy * dy;
-
-      // If in attack range, stop dead immediately
       if (dSq <= sys.attackRangeSq[id]) {
-        sys.vx[id] = 0;
-        sys.vy[id] = 0;
+        sys.vx[id] = 0; sys.vy[id] = 0;
         return;
       }
     }
 
-    // 2. STAGGERED UPDATE (Run heavy steering math only every 10 frames)
+    // 2. STAGGERED LOGIC (Every 10 frames)
     if ((frameCount + id) % 10 !== 0) return;
-
-    // Refresh target if none exists
     if (tid === -1 || sys.hp[tid] <= 0) {
       tid = sys.targetId[id] = zone.findNearestHostile(id, sys);
     }
-    if (tid === -1) { 
-      sys.vx[id] = 0; sys.vy[id] = 0; 
-      return; 
-    }
+    if (tid === -1) { sys.vx[id] = 0; sys.vy[id] = 0; return; }
 
-    // BASE DIRECTION (Target seeking)
     const dx = sys.x[tid] - sys.x[id];
     const dy = sys.y[tid] - sys.y[id];
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const tx = dx / dist;
-    const ty = dy / dist;
+    const distSq = dx * dx + dy * dy;
+    const dist = Math.sqrt(distSq);
+    const tx = dx / dist; // Forward X
+    const ty = dy / dist; // Forward Y
 
-    // 3. SEPARATION & AVOIDANCE (Fixes V-shape and clumping)
-    const neighborCount = zone.getNeighbors(id, sys, 1);
-    const personalSpace = 45; 
-    const personalSpaceSq = 2025;
+    // 3. FANNING & AVOIDANCE
+    const fanThreshold = sys.attackRange[id] * 3;
+    const personalSpace = dist < fanThreshold ? 44 : 8;
+    const personalSpaceSq = personalSpace * personalSpace;
     
-    let avoidX = 0;
-    let avoidY = 0;
+    const neighborCount = zone.getNeighbors(id, sys, 1);
+    let sidePush = 0; // We only care about LEFT or RIGHT push
+
+    // Perpendicular vector (Side direction)
+    const sx = -ty; 
+    const sy = tx;
 
     for (let i = 0; i < neighborCount; i++) {
       const nid = zone.neighborBuffer[i];
@@ -77,31 +73,30 @@ export const CONTROLLERS = {
 
       const nx = sys.x[id] - sys.x[nid];
       const ny = sys.y[id] - sys.y[nid];
-      const dSq = nx * nx + ny * ny;
+      const nDSq = nx * nx + ny * ny;
 
-      if (dSq < personalSpaceSq && dSq > 0) {
-        const d = Math.sqrt(dSq);
+      if (nDSq < personalSpaceSq && nDSq > 0) {
+        const d = Math.sqrt(nDSq);
         const weight = (personalSpace - d) / personalSpace;
-        // Accumulate a "push away" force
-        avoidX += (nx / d) * weight;
-        avoidY += (ny / d) * weight;
+        
+        // Calculate if the neighbor is to our LEFT or RIGHT relative to the player
+        const dotSide = (nx / d) * sx + (ny / d) * sy;
+        sidePush += dotSide * weight;
       }
     }
 
-    // 4. FINAL INTEGRATION
-    // Mix the direct target vector with the avoidance vector
-    // This allows monsters to "arc" around others to reach the player
+    // 4. FINAL MOVEMENT
     const speed = 150;
-    const finalX = tx + (avoidX * 1.5); 
-    const finalY = ty + (avoidY * 1.5);
     
-    const mag = Math.sqrt(finalX * finalX + finalY * finalY);
-    if (mag > 0.01) {
-      sys.vx[id] = (finalX / mag) * speed;
-      sys.vy[id] = (finalY / mag) * speed;
-    } else {
-      sys.vx[id] = tx * speed;
-      sys.vy[id] = ty * speed;
-    }
+    // We construct the move vector by adding a "Side" component to the "Forward" component.
+    // Because 'sx/sy' is perfectly perpendicular to the target, adding it 
+    // can NEVER make the monster move backwards.
+    let moveX = tx + (sx * sidePush * 2.0);
+    let moveY = ty + (sy * sidePush * 2.0);
+
+    // Final Normalization
+    const mag = Math.sqrt(moveX * moveX + moveY * moveY);
+    sys.vx[id] = (moveX / mag) * speed;
+    sys.vy[id] = (moveY / mag) * speed;
   }
 };
