@@ -79,38 +79,46 @@ export class Zone {
   }
 
   /**
-   * Optimized getNearby: Returns count and populates neighborBuffer.
-   * This version ensures neighbors are seen before they overlap.
+   * Identifies up to MAX_NEIGHBORS neighbors nearby using a spatial grid (called by AI steering controller)
    */
-  getNearby(id, sys, radius = 1) {
-    const col = (sys.x[id] / this.tileSize) | 0;
-    const row = (sys.y[id] / this.tileSize) | 0;
-    this.neighborCount = 0;
+  getNeighbors(id, sys, radius = 1) {
+    const grid = this.spatialGrid;
+    const buffer = this.neighborBuffer;
+    const cols = this.cols;
+    const rows = this.rows;
+    const tileSize = this.tileSize;
+
+    const col = (sys.x[id] / tileSize) | 0;
+    const row = (sys.y[id] / tileSize) | 0;
     
-    const MAX_NEIGHBORS = 10; // 16 is plenty for a "nudge" force
+    let count = 0;
+    const MAX_NEIGHBORS = 10; 
 
     for (let r = row - radius; r <= row + radius; r++) {
-      if (r < 0 || r >= this.rows) continue;
-      const rowOffset = r * this.cols;
+      if (r < 0 || r >= rows) continue;
+      const rowOffset = r * cols;
 
       for (let c = col - radius; c <= col + radius; c++) {
-        if (c < 0 || c >= this.cols) continue;
+        if (c < 0 || c >= cols) continue;
 
-        const cell = this.spatialGrid[rowOffset + c];
-        for (let i = 0; i < cell.length; i++) {
+        const cell = grid[rowOffset + c];
+        const cellLen = cell.length; // 2. Cache cell length
+
+        for (let i = 0; i < cellLen; i++) {
           const nid = cell[i];
           if (nid === id) continue;
 
-          this.neighborBuffer[this.neighborCount++] = nid;
+          buffer[count++] = nid; // 3. Use local buffer reference
 
-          // EXIT EARLY: If we've found enough neighbors to calculate a nudge, 
-          // stop searching this cell/area to save CPU cycles.
-          if (this.neighborCount >= MAX_NEIGHBORS) return MAX_NEIGHBORS;
-          // if (this.neighborCount >= this.neighborBuffer.length) return this.neighborCount;
+          if (count >= MAX_NEIGHBORS) {
+            this.neighborCount = count; // Sync back to class before exiting
+            return count;
+          }
         }
       }
     }
-    return this.neighborCount;
+    this.neighborCount = count; // Sync back to class
+    return count;
   }
 
   isWalk(px, py) {

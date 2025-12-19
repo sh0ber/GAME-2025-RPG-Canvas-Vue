@@ -15,7 +15,7 @@ export class AIManager {
 
       if (!npc.target || npc.target.isEnabled === false) {
         const cellRadius = Math.ceil(npc.aggroRange / zone.tileSize);
-        const candidates = zone.getNearby(npc, cellRadius);
+        const candidates = zone.getNeighbors(npc, cellRadius);
         npc.target = this.findNearestHostile(npc, candidates);
       }
 

@@ -85,7 +85,7 @@ export class Zone {
     }
   }
 
-  getNearby(originObj, radius = 1) {
+  getNeighbors(originObj, radius = 1) {
     const col = (originObj.x / this.tileSize) | 0;
     const row = (originObj.y / this.tileSize) | 0;
     const neighbors = [];

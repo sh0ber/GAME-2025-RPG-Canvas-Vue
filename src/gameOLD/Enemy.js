@@ -56,7 +56,7 @@ export class Enemy extends Character {
     let fy = dy / d;
 
     // 3. Separation (Neighbor logic moved from Manager to here)
-    const neighbors = zone.getNearby(this, 1);
+    const neighbors = zone.getNeighbors(this, 1);
     for (let n = 0; n < neighbors.length; n++) {
       const neighbor = neighbors[n];
       if (neighbor === this || neighbor.faction !== this.faction) continue;
