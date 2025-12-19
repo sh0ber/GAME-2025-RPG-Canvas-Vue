@@ -12,7 +12,7 @@ export class CharacterManager {
     this.vy = new Float32Array(capacity);
     this.width = new Uint16Array(capacity).fill(32);
     this.height = new Uint16Array(capacity).fill(32);
-    
+
     // STATS
     this.hp = new Float32Array(capacity);
 
@@ -51,20 +51,38 @@ export class CharacterManager {
     }
   }
 
-  updateMovement(deltaTime, zone) {
+  updateMovement(dt, zone) {
     for (let i = 0; i < this.activeCount; i++) {
-      if (this.vx[i] === 0 && this.vy[i] === 0) continue;
+      // Test for valid values
+      const vx = this.vx[i];
+      const vy = this.vy[i];
+      if (vx === 0 && vy === 0) continue;
 
-      const nextX = this.x[i] + this.vx[i] * deltaTime;
-      const nextY = this.y[i] + this.vy[i] * deltaTime;
+      // Store variables locally for speed
+      const w = this.width[i];
+      const h = this.height[i];
+      let px = this.x[i];
+      let py = this.y[i];
 
-      // Independent axis check for wall-sliding
-      if (zone.isAreaWalkable(nextX, this.y[i], this.width[i], this.height[i])) {
-        this.x[i] = nextX;
+      // Try moving X
+      if (vx !== 0) {
+        const nextX = px + vx * dt;
+        if (zone.canMove(nextX, py, w, h, vx, 0)) {
+          px = nextX;
+          this.x[i] = px;
+        }
       }
-      if (zone.isAreaWalkable(this.x[i], nextY, this.width[i], this.height[i])) {
-        this.y[i] = nextY;
+
+      // Try moving Y (using the potentially updated px)
+      if (vy !== 0) {
+        const nextY = py + vy * dt;
+        if (zone.canMove(px, nextY, w, h, 0, vy)) {
+          py = nextY;
+          this.y[i] = py;
+        }
       }
+
+      // Make sure character is within zone bounds
       zone.clamp(i, this);
     }
   }

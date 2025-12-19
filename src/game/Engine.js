@@ -36,7 +36,7 @@ class Engine {
 
       // Pre-allocate memory buffers once for life of the application
       // Not done on the Zone intentionally for speediness and preventing GC
-      this.characterManager = new CharacterManager(5001); // Max characters on screen, buffer created now. Includes hero.
+      this.characterManager = new CharacterManager(1000); // Max characters on screen, buffer created now. Includes hero.
 
       // Initial map load
       await this.loadZone('test');
@@ -127,7 +127,7 @@ class Engine {
     // 3. Resolve Physics: Apply vx/vy to x/y with Zone collision
     this.characterManager.updateMovement(deltaTime, this.currentZone);
 
-    // 4. Post-Update: Camera follows character
+    // 4. Update Camera: Follow target character
     this.cameraManager.update(this.characterManager);
   }
 

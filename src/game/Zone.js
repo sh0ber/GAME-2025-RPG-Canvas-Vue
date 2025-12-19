@@ -90,9 +90,9 @@ export class Zone {
 
     const col = (sys.x[id] / tileSize) | 0;
     const row = (sys.y[id] / tileSize) | 0;
-    
+
     let count = 0;
-    const MAX_NEIGHBORS = 32; 
+    const MAX_NEIGHBORS = 32;
 
     for (let r = row - radius; r <= row + radius; r++) {
       if (r < 0 || r >= rows) continue;
@@ -121,27 +121,39 @@ export class Zone {
     return count;
   }
 
-  isWalk(px, py) {
+  isPixelWalkable(px, py) {
     const c = (px / this.tileSize) | 0;
     const r = (py / this.tileSize) | 0;
     return r >= 0 && r < this.rows && c >= 0 && c < this.cols && this.mapData[r][c] !== 0;
   }
 
-  isAreaWalkable(x, y, w, h) {
+  canMove(x, y, w, h, vx, vy) {
     const inset = 4;
-    return (
-      this.isWalk(x + inset, y + inset) &&
-      this.isWalk(x + w - inset, y + inset) &&
-      this.isWalk(x + inset, y + h - inset) &&
-      this.isWalk(x + w - inset, y + h - inset)
-    );
+
+    if (vx !== 0) {
+      // Moving horizontally? Check the leading vertical edge (Left or Right)
+      const edgeX = vx > 0 ? x + w - inset : x + inset;
+      return this.isPixelWalkable(edgeX, y + inset) &&
+        this.isPixelWalkable(edgeX, y + h - inset);
+    }
+
+    if (vy !== 0) {
+      // Moving vertically? Check the leading horizontal edge (Top or Bottom)
+      const edgeY = vy > 0 ? y + h - inset : y + inset;
+      return this.isPixelWalkable(x + inset, edgeY) &&
+        this.isPixelWalkable(x + w - inset, edgeY);
+    }
+
+    return true;
   }
 
   clamp(id, sys) {
+    const x = sys.x[id], y = sys.y[id];
     const maxX = (this.cols * this.tileSize) - sys.width[id];
     const maxY = (this.rows * this.tileSize) - sys.height[id];
-    sys.x[id] = Math.max(0, Math.min(sys.x[id], maxX));
-    sys.y[id] = Math.max(0, Math.min(sys.y[id], maxY));
+
+    sys.x[id] = x < 0 ? 0 : (x > maxX ? maxX : x);
+    sys.y[id] = y < 0 ? 0 : (y > maxY ? maxY : y);
   }
 
   getTileType(row, col) {
