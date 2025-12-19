@@ -16,16 +16,16 @@ export class CameraManager {
     this.yMax = rows * GameConfig.TILE_SIZE;
   }
 
-  // Set the ID of the character to follow (usually 0 for the Hero)
-  setTargetId(id) {
+  // Set the ID of the character to follow (Default 0 for the Hero)
+  setTargetId(id = 0) {
     this.targetId = id;
   }
 
-  update(system) {
-    if (this.targetId === -1 || this.targetId >= system.activeCount) return;
+  update(characterManager) {
+    if (this.targetId === -1 || this.targetId >= characterManager.activeCount) return;
 
-    const targetX = system.x[this.targetId];
-    const targetY = system.y[this.targetId];
+    const targetX = characterManager.x[this.targetId];
+    const targetY = characterManager.y[this.targetId];
 
     // Center and clamp using raw floats to keep movement fluid
     let nextX = targetX - this.width / 2;
@@ -37,7 +37,7 @@ export class CameraManager {
 
   getVisibleGridBoundaries() {
     const TILE_SIZE = GameConfig.TILE_SIZE;
-    // We add +1 to the end indices to act as a buffer for smooth scrolling
+    // Add +1 to the end indices to act as a buffer for smooth scrolling
     const startCol = Math.floor(this.x / TILE_SIZE);
     const endCol = startCol + Math.ceil(this.width / TILE_SIZE);
     const startRow = Math.floor(this.y / TILE_SIZE);
