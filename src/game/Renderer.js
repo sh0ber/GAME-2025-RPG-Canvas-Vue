@@ -53,7 +53,7 @@ export class Renderer {
     // Iterate efficiently over just the visible/near-visible tiles
     for (let row = startRow; row < endRow + 1; row++) {
       for (let col = startCol; col < endCol + 1; col++) {
-        const tileType = zone.getTileType(row, col);
+        const tileType = zone.mapData[row * zone.cols + col]; 
         if (tileType !== null) { // Only draw valid tiles
           // Round screen coordinates to integers to prevent blurry rendering
           const screenX = Math.floor((col * TILE_SIZE) - cameraX);

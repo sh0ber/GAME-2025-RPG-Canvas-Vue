@@ -3,21 +3,27 @@ import { GameConfig } from '@/config/config.js';
 
 export class Zone {
   constructor(name, characterManager) {
-    const data = ZoneConfig[name];
+    const data = ZoneConfig[name]; // data.mapData is still a 2D array here
     this.name = name;
-    this.mapData = data.mapData;
-    this.rows = this.mapData.length;
-    this.cols = this.rows > 0 ? this.mapData[0].length : 0;
+    this.rows = data.mapData.length;
+    this.cols = this.rows > 0 ? data.mapData[0].length : 0;
     this.tileSize = GameConfig.TILE_SIZE || 32;
 
-    this.spatialGrid = Array.from({ length: this.rows * this.cols }, () => []);
+    // 1. Flatten the 2D map into a 1D Typed Array
+    this.mapData = new Uint8Array(this.rows * this.cols);
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        // formula: row * width + col
+        this.mapData[r * this.cols + c] = data.mapData[r][c];
+      }
+    }
 
-    // OPTIMIZATION: Pre-allocate a shared buffer. This prevents the engine from creating thousands of empty arrays [] every second.
+    this.spatialGrid = Array.from({ length: this.rows * this.cols }, () => []);
     this.neighborBuffer = new Int32Array(characterManager.capacity);
     this.neighborCount = 0;
 
-    // Spawns
-    characterManager.spawn(100, 100, 1, 2, 1); // Hero must always be the first spawned entity
+    // Spawns (unchanged)
+    characterManager.spawn(100, 100, 1, 2, 1);
     if (data.enemies) {
       data.enemies.forEach(e => characterManager.spawn(e.x, e.y, 2, 1, 2));
     }
@@ -124,7 +130,9 @@ export class Zone {
   isPixelWalkable(px, py) {
     const c = (px / this.tileSize) | 0;
     const r = (py / this.tileSize) | 0;
-    return r >= 0 && r < this.rows && c >= 0 && c < this.cols && this.mapData[r][c] !== 0;
+    if (r < 0 || r >= this.rows || c < 0 || c >= this.cols) return false;
+    
+    return this.mapData[r * this.cols + c] !== 0;
   }
 
   canMove(x, y, w, h, vx, vy) {
@@ -154,10 +162,5 @@ export class Zone {
 
     sys.x[id] = x < 0 ? 0 : (x > maxX ? maxX : x);
     sys.y[id] = y < 0 ? 0 : (y > maxY ? maxY : y);
-  }
-
-  getTileType(row, col) {
-    if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) return null;
-    return this.mapData[row][col];
   }
 }
