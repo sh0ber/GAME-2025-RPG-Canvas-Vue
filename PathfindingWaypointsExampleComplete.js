@@ -3,12 +3,15 @@ const ctx = canvas.getContext('2d');
 canvas.width = 800;
 canvas.height = 600;
 
+let lastTime = performance.now();
+const MONSTER_SPEED_SEC = 150;
+
 const CELL_SIZE = 32;
 const COLS = Math.floor(canvas.width / CELL_SIZE);
 const ROWS = Math.floor(canvas.height / CELL_SIZE);
-const NUM_MONSTERS = 1000;
-const NUM_TARGETS = 5;
-const MONSTER_SPEED = 2.5;
+const NUM_MONSTERS = 100;
+const NUM_TARGETS = 2;
+const MONSTER_SPEED = 2;
 
 // 1. GENERATE MAZE
 const maze = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
@@ -133,84 +136,80 @@ const monsters = Array.from({ length: NUM_MONSTERS }, () => {
   const startWp = Math.floor(Math.random() * waypoints.length);
   const target = targets[Math.floor(Math.random() * targets.length)];
   return {
-    x: waypoints[startWp].x,
-    y: waypoints[startWp].y,
-    currentWp: startWp,
-    target,
-    color: target.color,
-    finished: false,
-    update() {
+    x: waypoints[startWp].x, y: waypoints[startWp].y,
+    currentWp: startWp, target, color: target.color, finished: false,
+    update(dt) {
       if (this.finished) return;
 
-      // 1. Direct line of sight to target (No waypoints needed)
-      if (hasLineOfSight(this.x, this.y, this.target.x, this.target.y)) {
-        const dx = this.target.x - this.x, dy = this.target.y - this.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 5) { this.finished = true; return; }
-        this.x += (dx / dist) * MONSTER_SPEED;
-        this.y += (dy / dist) * MONSTER_SPEED;
+      let tx = this.target.x, ty = this.target.y, isDirect = true;
 
-        // While moving, constantly update currentWp to the closest node 
-        // so we have a valid starting point if we lose LoS.
-        this.currentWp = waypointMap[`${Math.floor(this.y / CELL_SIZE)},${Math.floor(this.x / CELL_SIZE)}`] || this.currentWp;
-        return;
-      }
+      // 1. Check Line of Sight to Target; if blocked, use Pathfinding
+      if (!hasLineOfSight(this.x, this.y, this.target.x, this.target.y)) {
+        isDirect = false;
+        const path = getPath(this.currentWp, this.target.currentWp);
+        let bestWpIdx = -1;
+        for (let i = path.length - 1; i >= 0; i--) {
+          if (hasLineOfSight(this.x, this.y, waypoints[path[i]].x, waypoints[path[i]].y)) {
+            bestWpIdx = path[i];
+            break;
+          }
+        }
 
-      // 2. Get the path sequence from the table
-      const path = getPath(this.currentWp, this.target.currentWp);
+        const goalIdx = (bestWpIdx !== -1) ? bestWpIdx : nextStepTable[this.currentWp][this.target.currentWp];
+        if (goalIdx === -1) return;
 
-      // 3. Coordinate-based "Short-Circuit"
-      // Look at the path and find the furthest waypoint you can see from your CURRENT X/Y
-      let bestWpIdx = -1;
-      for (let i = path.length - 1; i >= 0; i--) {
-        const wp = waypoints[path[i]];
-        if (hasLineOfSight(this.x, this.y, wp.x, wp.y)) {
-          bestWpIdx = path[i];
-          break;
+        const goal = waypoints[goalIdx];
+        tx = goal.x; ty = goal.y;
+
+        // 2. Tangent Corner Steering (Shortest Path logic)
+        const nextIdx = nextStepTable[goalIdx][this.target.currentWp];
+        if (nextIdx !== -1 && nextIdx !== goalIdx) {
+          const next = waypoints[nextIdx];
+          const offset = CELL_SIZE / 2; 
+          tx += (next.x > goal.x) ? offset : (next.x < goal.x) ? -offset : 0;
+          ty += (next.y > goal.y) ? offset : (next.y < goal.y) ? -offset : 0;
         }
       }
 
-      // 4. Move toward the visible coordinate, NOT the currentWp
-      const finalGoalIdx = bestWpIdx !== -1 ? bestWpIdx : nextStepTable[this.currentWp][this.target.currentWp];
+      // 3. Move toward tx, ty using Delta Time
+      const dx = tx - this.x, dy = ty - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const moveDist = MONSTER_SPEED_SEC * dt;
 
-      if (finalGoalIdx !== -1) {
-        const goal = waypoints[finalGoalIdx];
-        const dx = goal.x - this.x;
-        const dy = goal.y - this.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        // Apply movement
-        this.x += (dx / dist) * MONSTER_SPEED;
-        this.y += (dy / dist) * MONSTER_SPEED;
-
-        // Update currentWp to whatever node we are physically passing
-        const myNode = waypointMap[`${Math.floor(this.y / CELL_SIZE)},${Math.floor(this.x / CELL_SIZE)}`];
-        if (myNode !== undefined) this.currentWp = myNode;
+      if (isDirect && dist < moveDist) {
+        this.finished = true;
+      } else {
+        this.x += (dx / dist) * moveDist;
+        this.y += (dy / dist) * moveDist;
       }
+
+      // Update position in waypoint grid
+      const myNode = waypointMap[`${Math.floor(this.y/CELL_SIZE)},${Math.floor(this.x/CELL_SIZE)}`];
+      if (myNode !== undefined) this.currentWp = myNode;
     }
   };
 });
 
 // 5. RENDER
-function loop() {
+function loop(now) {
+  const dt = (now - lastTime) / 1000;
+  lastTime = now;
+
   ctx.fillStyle = '#111';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Draw Walls
   ctx.fillStyle = '#222';
   for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++)
     if (maze[y][x]) ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE - 1, CELL_SIZE - 1);
 
-  // Update & Draw Targets
-  targets.forEach(t => {
-    t.update();
+  targets.forEach(t => { 
+    t.update(); // Targets still use frame-based logic unless you update their class too
     ctx.fillStyle = t.color;
     ctx.fillRect(t.x - 8, t.y - 8, 16, 16);
   });
 
-  // Update & Draw Monsters
   monsters.filter(m => !m.finished).forEach(m => {
-    m.update();
+    m.update(dt);
     ctx.beginPath();
     ctx.arc(m.x, m.y, 4, 0, Math.PI * 2);
     ctx.fillStyle = m.color;
@@ -219,4 +218,4 @@ function loop() {
 
   requestAnimationFrame(loop);
 }
-loop();
+requestAnimationFrame(loop);
